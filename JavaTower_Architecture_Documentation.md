@@ -40,9 +40,10 @@
 9. [Database Design](#9-database-design)
 10. [GUI Architecture](#10-gui-architecture)
 11. [Game Loop and Real-Time Systems](#11-game-loop-and-real-time-systems)
-12. [Testing and Demonstration](#12-testing-and-demonstration)
-13. [AI Tool Usage and Reflection](#13-ai-tool-usage-and-reflection)
-14. [Conclusion](#14-conclusion)
+12. [Application Screenshots](#12-application-screenshots)
+13. [Testing and Demonstration](#13-testing-and-demonstration)
+14. [AI Tool Usage and Reflection](#14-ai-tool-usage-and-reflection)
+15. [Conclusion](#15-conclusion)
 
 ---
 
@@ -867,7 +868,37 @@ gameLoop = new AnimationTimer() {
 
 ---
 
-## 12. Testing and Demonstration
+## 12. Application Screenshots
+
+The following screenshots demonstrate the working application:
+
+### Main Menu
+![Main Menu](screenshots/01_main_menu.png)
+*The main menu screen with New Game, Load Game, and Quit options.*
+
+### Gameplay — Wave Start
+![Gameplay Start](screenshots/02_gameplay_start.png)
+*The game board showing the hero, grid, tower placement buttons, and HUD panels.*
+
+### Gameplay — Combat
+![Gameplay Combat](screenshots/03_gameplay_combat.png)
+*Real-time combat with enemies approaching the hero, health bars visible.*
+
+### Shop / Gameplay
+![Shop](screenshots/04_shop_or_gameplay.png)
+*The shop interface or continued gameplay showing wave progression.*
+
+### Inventory
+![Inventory](screenshots/05_inventory_or_gameplay.png)
+*The inventory management screen or gameplay with towers placed.*
+
+### Skill Tree / Additional Gameplay
+![Skill Tree](screenshots/06_skilltree_or_gameplay.png)
+*The skill tree interface or late-game combat.*
+
+---
+
+## 13. Testing and Demonstration
 
 ### Functional Testing
 
@@ -909,7 +940,7 @@ java --module-path "javafx-sdk/lib" --add-modules javafx.controls,javafx.graphic
 
 ---
 
-## 13. AI Tool Usage and Reflection
+## 14. AI Tool Usage and Reflection
 
 ### Tools Used
 - **GitHub Copilot** — Assisted with code generation, debugging, and architecture documentation
@@ -935,7 +966,7 @@ java --module-path "javafx-sdk/lib" --add-modules javafx.controls,javafx.graphic
 
 ---
 
-## 14. Conclusion
+## 15. Conclusion
 
 JavaTower demonstrates comprehensive application of Object-Oriented Programming principles through a real-time tower defence RPG with 35 Java source files across 7 packages. The project features:
 
