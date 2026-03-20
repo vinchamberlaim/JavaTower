@@ -9,6 +9,7 @@ import javatower.entities.Item.WeaponClass;
 import javatower.entities.Item.EquipmentSet;
 import javatower.util.Constants;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Represents the player-controlled hero character.
@@ -66,7 +67,7 @@ public class Hero extends Entity {
             if (dist < 3) {
                 moving = false;
             } else {
-                double step = moveSpeed * dt;
+                double step = (moveSpeed + getEquipmentStat("moveSpeed")) * dt;
                 if (step > dist) step = dist;
                 double nx = dx / dist;
                 double ny = dy / dist;
@@ -81,13 +82,13 @@ public class Hero extends Entity {
         if (regenTimer >= 1.0) {
             regenTimer -= 1.0;
             int regen = SetBonusManager.getHolyPassiveRegen(getEquippedItems());
-            if (regen > 0 && getCurrentHealth() < getMaxHealth()) {
-                setCurrentHealth(Math.min(getMaxHealth(), getCurrentHealth() + regen));
+            if (regen > 0 && getCurrentHealth() < getEffectiveMaxHealth()) {
+                setCurrentHealth(Math.min(getEffectiveMaxHealth(), getCurrentHealth() + regen));
             }
             // Death 4pc mana regen
             int manaRegen = SetBonusManager.getDeathManaRegen(getEquippedItems());
-            if (manaRegen > 0 && mana < maxMana) {
-                mana = Math.min(maxMana, mana + manaRegen);
+            if (manaRegen > 0 && mana < getEffectiveMaxMana()) {
+                mana = Math.min(getEffectiveMaxMana(), mana + manaRegen);
             }
         }
 
@@ -140,7 +141,7 @@ public class Hero extends Entity {
     }
 
     public int attackEnemy(Enemy target) {
-        int baseDamage = getAttack();
+        int baseDamage = getEffectiveAttack();
         // Apply weapon class skill modifier
         WeaponClass wc = weapon != null ? weapon.getWeaponClass() : WeaponClass.MELEE;
         double skillMult = skillProgression.getDamageMultiplier(wc);
@@ -151,7 +152,7 @@ public class Hero extends Entity {
         baseDamage = (int)(baseDamage * SetBonusManager.getFireDamageBonus(eq));
         baseDamage = (int)(baseDamage * SetBonusManager.getHolyUndeadDamageBonus(eq));
 
-        boolean crit = (Math.random() * 100) < critChance;
+        boolean crit = (Math.random() * 100) < getEffectiveCritChance();
         int damage = crit ? (int)(baseDamage * 1.5) : baseDamage;
         int dealt = target.takeDamage(damage);
         lastDamageDealt = dealt;
@@ -161,7 +162,7 @@ public class Hero extends Entity {
         if (lifeSteal > 0) {
             int healAmount = (int)(dealt * lifeSteal);
             if (healAmount > 0) {
-                setCurrentHealth(Math.min(getMaxHealth(), getCurrentHealth() + healAmount));
+                setCurrentHealth(Math.min(getEffectiveMaxHealth(), getCurrentHealth() + healAmount));
             }
         }
 
@@ -192,11 +193,11 @@ public class Hero extends Entity {
      */
     public void levelUp() {
         setMaxHealth(getMaxHealth() + 10);
-        setCurrentHealth(getMaxHealth());
+        setCurrentHealth(getEffectiveMaxHealth());
         setAttack(getAttack() + 2);
         setDefence(getDefence() + 1);
         maxMana += 5;
-        mana = maxMana;
+        mana = getEffectiveMaxMana();
         skillPoints++;
         level++;
         experienceToNextLevel = (int)(experienceToNextLevel * 1.2);
@@ -275,8 +276,8 @@ public class Hero extends Entity {
      */
     @Override
     public int takeDamage(int damage) {
-        // Defence skill gives extra flat reduction
-        int totalDef = getDefence() + skillProgression.getDefenceBonus();
+        // Effective defence = base + items + skill bonus
+        int totalDef = getEffectiveDefence() + skillProgression.getDefenceBonus();
         // Knight 2pc: +25% defence
         totalDef = (int)(totalDef * SetBonusManager.getKnightDefenceBonus(getEquippedItems()));
         int reduced = Math.max(1, damage - totalDef);
@@ -299,11 +300,13 @@ public class Hero extends Entity {
     @Override
     public void heal(int amount) {
         if (!isAlive()) return;
+        // Add flat heal power from equipment
+        amount += getEquipmentHealBonus();
         double holyMult = skillProgression.getHolyHealBonus();
         // Holy 2pc set bonus: +20% heal
         holyMult *= SetBonusManager.getHolyHealBonus(getEquippedItems());
         int boostedAmount = (int)(amount * holyMult);
-        setCurrentHealth(Math.min(getMaxHealth(), getCurrentHealth() + boostedAmount));
+        setCurrentHealth(Math.min(getEffectiveMaxHealth(), getCurrentHealth() + boostedAmount));
         skillProgression.addXP(WeaponClass.HOLY, 1.0);
     }
 
@@ -329,6 +332,52 @@ public class Hero extends Entity {
             return true;
         }
         return false;
+    }
+
+    // ========== Equipment-aware effective stats ==========
+
+    /**
+     * Sums a named stat across all equipped items.
+     */
+    public int getEquipmentStat(String stat) {
+        int total = 0;
+        for (Item item : getEquippedItems()) {
+            if (item != null) {
+                Integer val = item.getStatBonuses().get(stat);
+                if (val != null) total += val;
+            }
+        }
+        return total;
+    }
+
+    /** Base attack + all equipped item attack bonuses. */
+    public int getEffectiveAttack() {
+        return getAttack() + getEquipmentStat("attack");
+    }
+
+    /** Base defence + all equipped item defence bonuses. */
+    public int getEffectiveDefence() {
+        return getDefence() + getEquipmentStat("defence");
+    }
+
+    /** Base crit chance + all equipped item crit bonuses. */
+    public int getEffectiveCritChance() {
+        return critChance + getEquipmentStat("critChance");
+    }
+
+    /** Base max mana + equipped mana bonuses. */
+    public int getEffectiveMaxMana() {
+        return maxMana + getEquipmentStat("mana");
+    }
+
+    /** Base max HP + equipped health bonuses. */
+    public int getEffectiveMaxHealth() {
+        return getMaxHealth() + getEquipmentStat("health");
+    }
+
+    /** Total heal power bonus from items (flat). */
+    public int getEquipmentHealBonus() {
+        return getEquipmentStat("heal");
     }
 
 
@@ -368,9 +417,11 @@ public class Hero extends Entity {
         return range;
     }
 
-    /** Effective attack cooldown — base minus melee skill bonus and Knight 4pc bonus. */
+    /** Effective attack cooldown — base minus item speed bonus, melee skill, and Knight 4pc. */
     public double getEffectiveCooldown() {
         double cd = attackCooldown;
+        // Item "speed" stat: each point = 0.02s faster
+        cd -= getEquipmentStat("speed") * 0.02;
         cd -= skillProgression.getMeleeSpeedBonus();
         cd -= SetBonusManager.getKnightSpeedBonus(getEquippedItems());
         return Math.max(0.15, cd); // minimum 0.15s

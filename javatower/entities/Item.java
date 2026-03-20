@@ -83,13 +83,16 @@ public class Item {
 
     // Static factory methods
     private void autoPrice() {
-        buyPrice = (int)(10 * rarity.mult * itemLevel);
-        sellPrice = buyPrice / 2;
+        int statTotal = 0;
+        for (int v : statBonuses.values()) statTotal += Math.abs(v);
+        buyPrice = (int)(10 * rarity.mult * itemLevel) + statTotal;
+        sellPrice = buyPrice / 3;
     }
 
     public static Item createSword(int level, Rarity rarity) {
         Item item = new Item("Sword", "A sharp blade. Trains Melee skill.", Slot.WEAPON, rarity, WeaponClass.MELEE, 1, 3, level);
         item.statBonuses.put("attack", (int)(10 * rarity.mult * level));
+        item.statBonuses.put("speed", (int)(2 * rarity.mult));
         item.autoPrice();
         return item;
     }
@@ -97,6 +100,7 @@ public class Item {
         Item item = new Item("Crossbow", "A mechanical crossbow. Trains Ranged skill.", Slot.WEAPON, rarity, WeaponClass.RANGED, 2, 3, level);
         item.statBonuses.put("attack", (int)(7 * rarity.mult * level));
         item.statBonuses.put("range", (int)(30 * rarity.mult));
+        item.statBonuses.put("speed", (int)(1 * rarity.mult));
         item.autoPrice();
         return item;
     }
@@ -104,6 +108,7 @@ public class Item {
         Item item = new Item("Necromancer Staff", "A dark staff. Trains Necromancy skill.", Slot.WEAPON, rarity, WeaponClass.NECROMANCY, 1, 4, level);
         item.statBonuses.put("attack", (int)(6 * rarity.mult * level));
         item.statBonuses.put("mana", (int)(10 * rarity.mult * level));
+        item.statBonuses.put("speed", (int)(1 * rarity.mult));
         item.autoPrice();
         return item;
     }
@@ -111,6 +116,7 @@ public class Item {
         Item item = new Item("Holy Mace", "A blessed mace. Trains Holy skill.", Slot.WEAPON, rarity, WeaponClass.HOLY, 1, 3, level);
         item.statBonuses.put("attack", (int)(8 * rarity.mult * level));
         item.statBonuses.put("heal", (int)(3 * rarity.mult * level));
+        item.statBonuses.put("speed", (int)(1 * rarity.mult));
         item.autoPrice();
         return item;
     }
@@ -123,18 +129,35 @@ public class Item {
     public static Item createHelmet(int level, Rarity rarity) {
         Item item = new Item("Helmet", "Protects your head.", Slot.HELMET, rarity, WeaponClass.DEFENCE, 2, 1, level);
         item.statBonuses.put("defence", (int)(5 * rarity.mult * level));
+        item.statBonuses.put("health", (int)(5 * rarity.mult * level));
         item.autoPrice();
         return item;
     }
     public static Item createChestArmor(int level, Rarity rarity) {
         Item item = new Item("Chest Armor", "Protects your torso.", Slot.CHEST, rarity, WeaponClass.DEFENCE, 2, 3, level);
         item.statBonuses.put("defence", (int)(12 * rarity.mult * level));
+        item.statBonuses.put("health", (int)(15 * rarity.mult * level));
         item.autoPrice();
         return item;
     }
     public static Item createRing(int level, Rarity rarity) {
         Item item = new Item("Ring", "A magical ring.", Slot.ACCESSORY, rarity, WeaponClass.NONE, 1, 1, level);
         item.statBonuses.put("critChance", (int)(2 * rarity.mult * level));
+        item.autoPrice();
+        return item;
+    }
+    public static Item createBoots(int level, Rarity rarity) {
+        Item item = new Item("Boots", "Sturdy footwear. Increases movement and attack speed.", Slot.BOOTS, rarity, WeaponClass.NONE, 2, 1, level);
+        item.statBonuses.put("speed", (int)(3 * rarity.mult));
+        item.statBonuses.put("moveSpeed", (int)(10 * rarity.mult));
+        item.statBonuses.put("defence", (int)(2 * rarity.mult * level));
+        item.autoPrice();
+        return item;
+    }
+    public static Item createLeggings(int level, Rarity rarity) {
+        Item item = new Item("Leggings", "Leg armor. Balances defence and mobility.", Slot.LEGS, rarity, WeaponClass.DEFENCE, 2, 2, level);
+        item.statBonuses.put("defence", (int)(7 * rarity.mult * level));
+        item.statBonuses.put("health", (int)(10 * rarity.mult * level));
         item.autoPrice();
         return item;
     }
@@ -158,6 +181,7 @@ public class Item {
         Item item = new Item("Holy Sword", "A blessed blade that smites the undead.", Slot.WEAPON, rarity, WeaponClass.HOLY, EquipmentSet.HOLY, 1, 3, level);
         item.statBonuses.put("attack", (int)(12 * rarity.mult * level));
         item.statBonuses.put("heal", (int)(2 * rarity.mult * level));
+        item.statBonuses.put("speed", (int)(2 * rarity.mult));
         item.autoPrice(); item.buyPrice *= 2; item.sellPrice *= 2;
         return item;
     }
@@ -188,6 +212,7 @@ public class Item {
         Item item = new Item("Death Staff", "Pulses with necrotic energy.", Slot.WEAPON, rarity, WeaponClass.NECROMANCY, EquipmentSet.DEATH, 1, 4, level);
         item.statBonuses.put("attack", (int)(8 * rarity.mult * level));
         item.statBonuses.put("mana", (int)(12 * rarity.mult * level));
+        item.statBonuses.put("speed", (int)(2 * rarity.mult));
         item.autoPrice(); item.buyPrice *= 2; item.sellPrice *= 2;
         return item;
     }
@@ -218,6 +243,7 @@ public class Item {
         Item item = new Item("Fire Staff", "Burns with eternal flame.", Slot.WEAPON, rarity, WeaponClass.RANGED, EquipmentSet.FIRE, 1, 4, level);
         item.statBonuses.put("attack", (int)(10 * rarity.mult * level));
         item.statBonuses.put("range", (int)(20 * rarity.mult));
+        item.statBonuses.put("speed", (int)(2 * rarity.mult));
         item.autoPrice(); item.buyPrice *= 2; item.sellPrice *= 2;
         return item;
     }
@@ -247,6 +273,7 @@ public class Item {
     public static Item createSteelGreatsword(int level, Rarity rarity) {
         Item item = new Item("Steel Greatsword", "A heavy two-handed blade.", Slot.WEAPON, rarity, WeaponClass.MELEE, EquipmentSet.KNIGHT, 1, 3, level);
         item.statBonuses.put("attack", (int)(14 * rarity.mult * level));
+        item.statBonuses.put("speed", (int)(3 * rarity.mult));
         item.autoPrice(); item.buyPrice *= 2; item.sellPrice *= 2;
         return item;
     }

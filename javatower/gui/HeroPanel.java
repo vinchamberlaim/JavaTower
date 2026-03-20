@@ -84,17 +84,31 @@ public class HeroPanel extends VBox {
         nameLabel.setText(hero.getName());
         levelLabel.setText("Level: " + hero.getLevel());
         goldLabel.setText("Gold: " + hero.getGold());
-        atkLabel.setText("ATK: " + hero.getAttack());
-        defLabel.setText("DEF: " + hero.getDefence());
-        critLabel.setText("CRIT: " + hero.getCritChance() + "%");
-        spdLabel.setText("SPD: " + (int) hero.getMoveSpeed());
+
+        int baseAtk = hero.getAttack();
+        int effAtk = hero.getEffectiveAttack();
+        atkLabel.setText("ATK: " + effAtk + (effAtk != baseAtk ? " (+" + (effAtk - baseAtk) + ")" : ""));
+
+        int baseDef = hero.getDefence();
+        int effDef = hero.getEffectiveDefence();
+        defLabel.setText("DEF: " + effDef + (effDef != baseDef ? " (+" + (effDef - baseDef) + ")" : ""));
+
+        int baseCrit = hero.getCritChance();
+        int effCrit = hero.getEffectiveCritChance();
+        critLabel.setText("CRIT: " + effCrit + "%" + (effCrit != baseCrit ? " (+" + (effCrit - baseCrit) + ")" : ""));
+
+        double cooldown = hero.getEffectiveCooldown();
+        spdLabel.setText("SPD: " + String.format("%.2fs", cooldown));
+
         manaLabel.setText("Skill Pts: " + hero.getSkillPoints());
 
-        double hpPct = hero.getMaxHealth() > 0 ? (double) hero.getCurrentHealth() / hero.getMaxHealth() : 0;
+        int effMaxHP = hero.getEffectiveMaxHealth();
+        double hpPct = effMaxHP > 0 ? (double) hero.getCurrentHealth() / effMaxHP : 0;
         hpBar.setProgress(hpPct);
         hpBar.setStyle(hpPct > 0.5 ? "-fx-accent: limegreen;" : hpPct > 0.25 ? "-fx-accent: yellow;" : "-fx-accent: red;");
 
-        double manaPct = hero.getMaxMana() > 0 ? (double) hero.getMana() / hero.getMaxMana() : 0;
+        int effMaxMana = hero.getEffectiveMaxMana();
+        double manaPct = effMaxMana > 0 ? (double) hero.getMana() / effMaxMana : 0;
         manaBar.setProgress(manaPct);
 
         double xpPct = hero.getExperienceToNextLevel() > 0 ? (double) hero.getExperience() / hero.getExperienceToNextLevel() : 0;

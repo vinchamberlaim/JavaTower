@@ -16,7 +16,7 @@ public class ItemFactory {
 
     /** Creates a random normal (non-set) item. */
     public static Item createRandomItem(int itemLevel, Rarity rarity) {
-        int type = rand.nextInt(8);
+        int type = rand.nextInt(10);
         switch (type) {
             case 0: return Item.createSword(itemLevel, rarity);
             case 1: return Item.createShield(itemLevel, rarity);
@@ -26,6 +26,8 @@ public class ItemFactory {
             case 5: return Item.createBow(itemLevel, rarity);
             case 6: return Item.createNecroStaff(itemLevel, rarity);
             case 7: return Item.createHolyMace(itemLevel, rarity);
+            case 8: return Item.createBoots(itemLevel, rarity);
+            case 9: return Item.createLeggings(itemLevel, rarity);
             default: return Item.createSword(itemLevel, rarity);
         }
     }
