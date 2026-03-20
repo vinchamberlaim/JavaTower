@@ -75,10 +75,12 @@ public class ShopPanel extends VBox {
             HBox row = new HBox(10);
             row.setAlignment(Pos.CENTER_LEFT);
 
-            Label name = new Label(item.getName() + " [" + item.getRarity().name() + "]");
+            String setTag = item.getEquipmentSet() != Item.EquipmentSet.NONE
+                    ? " {" + item.getEquipmentSet().className + "}" : "";
+            Label name = new Label(item.getName() + " [" + item.getRarity().name() + "]" + setTag);
             name.setFont(Font.font("Monospaced", 12));
             name.setStyle("-fx-text-fill: " + item.getRarity().color + ";");
-            name.setPrefWidth(200);
+            name.setPrefWidth(260);
 
             Label stats = new Label(item.getStatBonuses().toString());
             stats.setFont(Font.font("Monospaced", 10));
@@ -112,10 +114,12 @@ public class ShopPanel extends VBox {
             HBox row = new HBox(10);
             row.setAlignment(Pos.CENTER_LEFT);
 
-            Label name = new Label(item.getName() + " [" + item.getRarity().name() + "]");
+            String setTag = item.getEquipmentSet() != Item.EquipmentSet.NONE
+                    ? " {" + item.getEquipmentSet().className + "}" : "";
+            Label name = new Label(item.getName() + " [" + item.getRarity().name() + "]" + setTag);
             name.setFont(Font.font("Monospaced", 12));
             name.setStyle("-fx-text-fill: " + item.getRarity().color + ";");
-            name.setPrefWidth(200);
+            name.setPrefWidth(260);
 
             Label price = new Label("+" + item.getSellPrice() + "g");
             price.setFont(Font.font("Monospaced", FontWeight.BOLD, 12));

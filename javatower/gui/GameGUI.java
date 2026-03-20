@@ -18,6 +18,7 @@ import javatower.entities.*;
 import javatower.entities.Tower.TowerType;
 import javatower.factories.TowerFactory;
 import javatower.systems.Shop;
+import javatower.systems.SetBonusManager;
 import javatower.util.Constants;
 import javatower.util.GameState;
 import java.util.ArrayList;
@@ -146,6 +147,8 @@ public class GameGUI extends Application {
         skillTreeBtn.setOnAction(e -> showSkillTree());
         Button inventoryBtn = createActionButton("Inventory");
         inventoryBtn.setOnAction(e -> showInventory());
+        Button forgeBtn = createActionButton("Forge");
+        forgeBtn.setOnAction(e -> showForge());
 
         Button arrowTowerBtn = createActionButton("Arrow T");
         arrowTowerBtn.setOnAction(e -> pendingTowerType = TowerType.ARROW);
@@ -156,7 +159,7 @@ public class GameGUI extends Application {
         Button supportTowerBtn = createActionButton("Sup T");
         supportTowerBtn.setOnAction(e -> pendingTowerType = TowerType.SUPPORT);
 
-        actionBar.getChildren().addAll(skillBtn, shopBtn, skillTreeBtn, inventoryBtn,
+        actionBar.getChildren().addAll(skillBtn, shopBtn, skillTreeBtn, inventoryBtn, forgeBtn,
                 arrowTowerBtn, magicTowerBtn, siegeTowerBtn, supportTowerBtn);
 
         BorderPane root = new BorderPane();
@@ -371,6 +374,15 @@ public class GameGUI extends Application {
         InventoryPanel invPanel = new InventoryPanel(hero, this);
 
         currentScene = new Scene(invPanel, Constants.SCREEN_WIDTH + 250,
+                Constants.SCREEN_HEIGHT + 60);
+        primaryStage.setScene(currentScene);
+    }
+
+    public void showForge() {
+        stopGameLoop();
+        ForgePanel forgePanel = new ForgePanel(hero, this);
+
+        currentScene = new Scene(forgePanel, Constants.SCREEN_WIDTH + 250,
                 Constants.SCREEN_HEIGHT + 60);
         primaryStage.setScene(currentScene);
     }

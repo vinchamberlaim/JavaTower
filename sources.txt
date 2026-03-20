@@ -26,13 +26,17 @@ javatower\gui\GameBoard.java
 javatower\gui\GameGUI.java
 javatower\gui\HeroPanel.java
 javatower\gui\InventoryPanel.java
+javatower\gui\ForgePanel.java
 javatower\gui\ShopPanel.java
 javatower\gui\SkillTreePanel.java
 javatower\gui\WaveInfoPanel.java
 javatower\systems\CombatSystem.java
+javatower\systems\Forge.java
 javatower\systems\Inventory.java
+javatower\systems\SetBonusManager.java
 javatower\systems\Shop.java
 javatower\systems\SkillNode.java
+javatower\systems\SkillProgression.java
 javatower\systems\SkillTree.java
 javatower\systems\WaveManager.java
 javatower\util\Constants.java

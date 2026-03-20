@@ -64,10 +64,12 @@ public class InventoryPanel extends VBox {
         for (int i = 0; i < allItems.size(); i++) {
             Item item = allItems.get(i);
 
-            Label nameLabel = new Label(item.getName() + " [" + item.getRarity().name() + "]");
+            String setTag = item.getEquipmentSet() != Item.EquipmentSet.NONE
+                    ? " {" + item.getEquipmentSet().className + "}" : "";
+            Label nameLabel = new Label(item.getName() + " [" + item.getRarity().name() + "]" + setTag);
             nameLabel.setFont(Font.font("Monospaced", 12));
             nameLabel.setStyle("-fx-text-fill: " + item.getRarity().color + ";");
-            nameLabel.setPrefWidth(200);
+            nameLabel.setPrefWidth(260);
 
             Label statsLabel = new Label(item.getStatBonuses().toString());
             statsLabel.setFont(Font.font("Monospaced", 10));
