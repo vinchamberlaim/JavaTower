@@ -1,0 +1,145 @@
+package javatower.gui;
+
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.layout.*;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javatower.entities.Hero;
+import javatower.entities.Item;
+import javatower.systems.Shop;
+import java.util.List;
+
+/**
+ * Buy/sell interface between waves.
+ */
+public class ShopPanel extends VBox {
+    private Hero hero;
+    private Shop shop;
+    private GameGUI gui;
+    private VBox buySection, sellSection;
+    private Label goldLabel, statusLabel;
+
+    public ShopPanel(Hero hero, Shop shop, GameGUI gui) {
+        this.hero = hero;
+        this.shop = shop;
+        this.gui = gui;
+        setSpacing(12);
+        setPadding(new Insets(20));
+        setAlignment(Pos.TOP_CENTER);
+        setStyle("-fx-background-color: #1a1a2e;");
+
+        Label header = new Label("SHOP");
+        header.setFont(Font.font("Monospaced", FontWeight.BOLD, 28));
+        header.setStyle("-fx-text-fill: #e94560;");
+
+        goldLabel = new Label();
+        goldLabel.setFont(Font.font("Monospaced", FontWeight.BOLD, 16));
+        goldLabel.setStyle("-fx-text-fill: #eab308;");
+
+        statusLabel = new Label();
+        statusLabel.setFont(Font.font("Monospaced", 12));
+        statusLabel.setStyle("-fx-text-fill: #4ecca3;");
+
+        Label buyHeader = new Label("-- BUY --");
+        buyHeader.setFont(Font.font("Monospaced", FontWeight.BOLD, 14));
+        buyHeader.setStyle("-fx-text-fill: #22d3ee;");
+
+        buySection = new VBox(5);
+
+        Label sellHeader = new Label("-- SELL (Inventory) --");
+        sellHeader.setFont(Font.font("Monospaced", FontWeight.BOLD, 14));
+        sellHeader.setStyle("-fx-text-fill: #f97316;");
+
+        sellSection = new VBox(5);
+
+        Button backBtn = new Button("Back to Game");
+        backBtn.setFont(Font.font("Monospaced", FontWeight.BOLD, 14));
+        backBtn.setStyle("-fx-background-color: #e94560; -fx-text-fill: white; -fx-cursor: hand;");
+        backBtn.setOnAction(e -> gui.returnToGame());
+
+        getChildren().addAll(header, goldLabel, statusLabel, buyHeader, buySection, sellHeader, sellSection, backBtn);
+        refresh();
+    }
+
+    public void refresh() {
+        goldLabel.setText("Gold: " + hero.getGold());
+        statusLabel.setText("");
+
+        // Buy items
+        buySection.getChildren().clear();
+        List<Item> stock = shop.getAvailableItems();
+        for (Item item : stock) {
+            HBox row = new HBox(10);
+            row.setAlignment(Pos.CENTER_LEFT);
+
+            Label name = new Label(item.getName() + " [" + item.getRarity().name() + "]");
+            name.setFont(Font.font("Monospaced", 12));
+            name.setStyle("-fx-text-fill: " + item.getRarity().color + ";");
+            name.setPrefWidth(200);
+
+            Label stats = new Label(item.getStatBonuses().toString());
+            stats.setFont(Font.font("Monospaced", 10));
+            stats.setStyle("-fx-text-fill: #aaa;");
+            stats.setPrefWidth(150);
+
+            Label price = new Label(item.getBuyPrice() + "g");
+            price.setFont(Font.font("Monospaced", FontWeight.BOLD, 12));
+            price.setStyle("-fx-text-fill: #eab308;");
+
+            Button buyBtn = new Button("Buy");
+            buyBtn.setStyle("-fx-background-color: #4ecca3; -fx-text-fill: white;");
+            final Item itemRef = item;
+            buyBtn.setOnAction(e -> {
+                if (shop.buyItem(hero, itemRef)) {
+                    statusLabel.setText("Bought " + itemRef.getName() + "!");
+                } else {
+                    statusLabel.setText("Not enough gold!");
+                }
+                refresh();
+            });
+
+            row.getChildren().addAll(name, stats, price, buyBtn);
+            buySection.getChildren().add(row);
+        }
+
+        // Sell items
+        sellSection.getChildren().clear();
+        List<Item> inventory = hero.getInventory().getAllItems();
+        for (Item item : inventory) {
+            HBox row = new HBox(10);
+            row.setAlignment(Pos.CENTER_LEFT);
+
+            Label name = new Label(item.getName() + " [" + item.getRarity().name() + "]");
+            name.setFont(Font.font("Monospaced", 12));
+            name.setStyle("-fx-text-fill: " + item.getRarity().color + ";");
+            name.setPrefWidth(200);
+
+            Label price = new Label("+" + item.getSellPrice() + "g");
+            price.setFont(Font.font("Monospaced", FontWeight.BOLD, 12));
+            price.setStyle("-fx-text-fill: #eab308;");
+
+            Button sellBtn = new Button("Sell");
+            sellBtn.setStyle("-fx-background-color: #f97316; -fx-text-fill: white;");
+            final Item itemRef = item;
+            sellBtn.setOnAction(e -> {
+                int gold = shop.sellItem(hero, itemRef);
+                if (gold > 0) {
+                    statusLabel.setText("Sold " + itemRef.getName() + " for " + gold + "g!");
+                }
+                refresh();
+            });
+
+            row.getChildren().addAll(name, price, sellBtn);
+            sellSection.getChildren().add(row);
+        }
+
+        if (inventory.isEmpty()) {
+            Label empty = new Label("No items to sell");
+            empty.setStyle("-fx-text-fill: #666;");
+            sellSection.getChildren().add(empty);
+        }
+    }
+}

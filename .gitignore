@@ -1,0 +1,40 @@
+# Compiled output
+out/
+out2/
+*.class
+
+# JavaFX SDK (too large for repo - download separately)
+javafx-sdk/
+
+# SQLite database files
+*.db
+
+# Library JARs (document in README instead)
+lib/
+
+# IDE / editor files
+.vscode/
+*.iml
+.idea/
+
+# OS files
+Thumbs.db
+.DS_Store
+*.log
+
+# Assignment brief (not code)
+*.docx
+
+# Unrelated files
+DungeonEscape.java
+DungeonEscape.class
+ForLoopTest.java
+ForLoopTest.class
+HelloWorld.java
+HelloWorld.class
+ServoSweep.ino
+one.class
+two.class
+three.class
+four.class
+hs_err_pid*.log
