@@ -5,10 +5,17 @@
 
 | Field | Details |
 |-------|---------|
-| Student Name | Vincent Chamberlain |
-| Student ID | 2424309 |
 | Unit Code | CIS096-1 |
 | Date | March 2026 |
+| GitHub Repository | https://github.com/vinchamberlaim/JavaTower |
+
+### Group Members
+
+| Name | Student ID |
+|------|------------|
+| Vincent Chamberlain | 2424309 |
+| Nicolas Alfaro | 2301126 |
+| Emmanuel Adewumi | 2507044 |
 
 ---
 

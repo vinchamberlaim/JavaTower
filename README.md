@@ -5,10 +5,16 @@
 
 | Field | Details |
 |-------|---------|
-| Student Name | Vincent Chamberlain |
-| Student ID | 2424309 |
 | Unit Code | CIS096-1 |
 | Submission | Week 9 — OOP Architecture & Implementation |
+
+### Group Members
+
+| Name | Student ID |
+|------|------------|
+| Vincent Chamberlain | 2424309 |
+| Nicolas Alfaro | 2301126 |
+| Emmanuel Adewumi | 2507044 |
 
 ## Overview
 
