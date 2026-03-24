@@ -4,6 +4,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.*;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
@@ -48,7 +49,15 @@ public class SkillTreePanel extends VBox {
         backBtn.setStyle("-fx-background-color: #e94560; -fx-text-fill: white; -fx-cursor: hand;");
         backBtn.setOnAction(e -> gui.returnToGame());
 
-        getChildren().addAll(header, pointsLabel, statusLabel, treeContent, backBtn);
+        VBox inner = new VBox(8);
+        inner.setPadding(new Insets(10));
+        inner.getChildren().addAll(pointsLabel, statusLabel, treeContent, backBtn);
+
+        ScrollPane scroll = new ScrollPane(inner);
+        scroll.setFitToWidth(true);
+        scroll.setStyle("-fx-background: #1a1a2e; -fx-background-color: #1a1a2e;");
+
+        getChildren().addAll(header, scroll);
         refresh();
     }
 

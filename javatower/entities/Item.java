@@ -8,7 +8,7 @@ import java.util.Map;
  */
 public class Item {
     public enum Slot {
-        WEAPON, OFFHAND, HELMET, CHEST, LEGS, BOOTS, ACCESSORY, CONSUMABLE
+        WEAPON, OFFHAND, HELMET, CHEST, LEGS, BOOTS, GLOVES, AMULET, RING, CONSUMABLE
     }
     public enum Rarity {
         COMMON(1.0, "gray"),
@@ -63,6 +63,7 @@ public class Item {
     private Map<String, Integer> statBonuses;
     private int itemLevel;
     private int buyPrice, sellPrice;
+    private boolean twoHanded;
 
     public Item(String name, String description, Slot slot, Rarity rarity, WeaponClass weaponClass, int width, int height, int itemLevel) {
         this(name, description, slot, rarity, weaponClass, EquipmentSet.NONE, width, height, itemLevel);
@@ -79,6 +80,7 @@ public class Item {
         this.height = height;
         this.itemLevel = itemLevel;
         this.statBonuses = new HashMap<>();
+        this.twoHanded = false;
     }
 
     // Static factory methods
@@ -101,6 +103,7 @@ public class Item {
         item.statBonuses.put("attack", (int)(7 * rarity.mult * level));
         item.statBonuses.put("range", (int)(30 * rarity.mult));
         item.statBonuses.put("speed", (int)(1 * rarity.mult));
+        item.twoHanded = true;
         item.autoPrice();
         return item;
     }
@@ -109,6 +112,7 @@ public class Item {
         item.statBonuses.put("attack", (int)(6 * rarity.mult * level));
         item.statBonuses.put("mana", (int)(10 * rarity.mult * level));
         item.statBonuses.put("speed", (int)(1 * rarity.mult));
+        item.twoHanded = true;
         item.autoPrice();
         return item;
     }
@@ -123,6 +127,20 @@ public class Item {
     public static Item createShield(int level, Rarity rarity) {
         Item item = new Item("Shield", "A sturdy shield. Trains Defence skill.", Slot.OFFHAND, rarity, WeaponClass.DEFENCE, 2, 2, level);
         item.statBonuses.put("defence", (int)(8 * rarity.mult * level));
+        item.autoPrice();
+        return item;
+    }
+    public static Item createBuckler(int level, Rarity rarity) {
+        Item item = new Item("Buckler", "A small, quick shield. Light but effective.", Slot.OFFHAND, rarity, WeaponClass.DEFENCE, 1, 2, level);
+        item.statBonuses.put("defence", (int)(5 * rarity.mult * level));
+        item.statBonuses.put("speed", (int)(2 * rarity.mult));
+        item.autoPrice();
+        return item;
+    }
+    public static Item createKiteShield(int level, Rarity rarity) {
+        Item item = new Item("Kite Shield", "A large pointed shield. Great for blocking.", Slot.OFFHAND, rarity, WeaponClass.DEFENCE, 2, 3, level);
+        item.statBonuses.put("defence", (int)(12 * rarity.mult * level));
+        item.statBonuses.put("health", (int)(3 * rarity.mult * level));
         item.autoPrice();
         return item;
     }
@@ -141,7 +159,7 @@ public class Item {
         return item;
     }
     public static Item createRing(int level, Rarity rarity) {
-        Item item = new Item("Ring", "A magical ring.", Slot.ACCESSORY, rarity, WeaponClass.NONE, 1, 1, level);
+        Item item = new Item("Ring", "A magical ring.", Slot.RING, rarity, WeaponClass.NONE, 1, 1, level);
         item.statBonuses.put("critChance", (int)(2 * rarity.mult * level));
         item.autoPrice();
         return item;
@@ -213,6 +231,7 @@ public class Item {
         item.statBonuses.put("attack", (int)(8 * rarity.mult * level));
         item.statBonuses.put("mana", (int)(12 * rarity.mult * level));
         item.statBonuses.put("speed", (int)(2 * rarity.mult));
+        item.twoHanded = true;
         item.autoPrice(); item.buyPrice *= 2; item.sellPrice *= 2;
         return item;
     }
@@ -244,6 +263,7 @@ public class Item {
         item.statBonuses.put("attack", (int)(10 * rarity.mult * level));
         item.statBonuses.put("range", (int)(20 * rarity.mult));
         item.statBonuses.put("speed", (int)(2 * rarity.mult));
+        item.twoHanded = true;
         item.autoPrice(); item.buyPrice *= 2; item.sellPrice *= 2;
         return item;
     }
@@ -274,11 +294,12 @@ public class Item {
         Item item = new Item("Steel Greatsword", "A heavy two-handed blade.", Slot.WEAPON, rarity, WeaponClass.MELEE, EquipmentSet.KNIGHT, 1, 3, level);
         item.statBonuses.put("attack", (int)(14 * rarity.mult * level));
         item.statBonuses.put("speed", (int)(3 * rarity.mult));
+        item.twoHanded = true;
         item.autoPrice(); item.buyPrice *= 2; item.sellPrice *= 2;
         return item;
     }
     public static Item createTowerShield(int level, Rarity rarity) {
-        Item item = new Item("Tower Shield", "An imposing knightly shield.", Slot.OFFHAND, rarity, WeaponClass.DEFENCE, EquipmentSet.KNIGHT, 2, 2, level);
+        Item item = new Item("Tower Shield", "An imposing knightly shield.", Slot.OFFHAND, rarity, WeaponClass.DEFENCE, EquipmentSet.KNIGHT, 2, 3, level);
         item.statBonuses.put("defence", (int)(14 * rarity.mult * level));
         item.autoPrice(); item.buyPrice *= 2; item.sellPrice *= 2;
         return item;
@@ -308,6 +329,7 @@ public class Item {
 
         // Re-create with same properties but higher rarity
         Item upgraded = new Item(name, description, slot, nextRarity, weaponClass, equipmentSet, width, height, itemLevel);
+        upgraded.twoHanded = this.twoHanded;
         // Scale stats: multiply each bonus by (newMult / oldMult)
         double scale = nextRarity.mult / rarity.mult;
         for (Map.Entry<String, Integer> e : statBonuses.entrySet()) {
@@ -319,6 +341,160 @@ public class Item {
             upgraded.sellPrice *= 2;
         }
         return upgraded;
+    }
+
+    // ========== GLOVES ==========
+    public static Item createGauntlets(int level, Rarity rarity) {
+        Item item = new Item("Gauntlets", "Heavy metal gauntlets.", Slot.GLOVES, rarity, WeaponClass.DEFENCE, 2, 1, level);
+        item.statBonuses.put("attack", (int)(3 * rarity.mult * level));
+        item.statBonuses.put("defence", (int)(4 * rarity.mult * level));
+        item.autoPrice();
+        return item;
+    }
+    public static Item createClothGloves(int level, Rarity rarity) {
+        Item item = new Item("Cloth Gloves", "Enchanted cloth gloves.", Slot.GLOVES, rarity, WeaponClass.NONE, 2, 1, level);
+        item.statBonuses.put("mana", (int)(8 * rarity.mult * level));
+        item.statBonuses.put("speed", (int)(2 * rarity.mult));
+        item.autoPrice();
+        return item;
+    }
+    public static Item createLeatherGloves(int level, Rarity rarity) {
+        Item item = new Item("Leather Gloves", "Supple leather gloves.", Slot.GLOVES, rarity, WeaponClass.NONE, 2, 1, level);
+        item.statBonuses.put("critChance", (int)(3 * rarity.mult * level));
+        item.statBonuses.put("speed", (int)(1 * rarity.mult));
+        item.autoPrice();
+        return item;
+    }
+
+    // ========== AMULETS ==========
+    public static Item createAmuletOfFortitude(int level, Rarity rarity) {
+        Item item = new Item("Amulet of Fortitude", "Grants vitality.", Slot.AMULET, rarity, WeaponClass.NONE, 1, 1, level);
+        item.statBonuses.put("health", (int)(10 * rarity.mult * level));
+        item.statBonuses.put("defence", (int)(3 * rarity.mult * level));
+        item.autoPrice();
+        return item;
+    }
+    public static Item createAmuletOfArcana(int level, Rarity rarity) {
+        Item item = new Item("Amulet of Arcana", "Pulses with magic.", Slot.AMULET, rarity, WeaponClass.NONE, 1, 1, level);
+        item.statBonuses.put("mana", (int)(12 * rarity.mult * level));
+        item.statBonuses.put("attack", (int)(3 * rarity.mult * level));
+        item.autoPrice();
+        return item;
+    }
+    public static Item createAmuletOfTheWarrior(int level, Rarity rarity) {
+        Item item = new Item("Warrior Amulet", "Forged in battle.", Slot.AMULET, rarity, WeaponClass.NONE, 1, 1, level);
+        item.statBonuses.put("attack", (int)(5 * rarity.mult * level));
+        item.statBonuses.put("critChance", (int)(2 * rarity.mult * level));
+        item.autoPrice();
+        return item;
+    }
+
+    // ========== RINGS (variety) ==========
+    public static Item createRingOfPower(int level, Rarity rarity) {
+        Item item = new Item("Ring of Power", "Radiates raw strength.", Slot.RING, rarity, WeaponClass.NONE, 1, 1, level);
+        item.statBonuses.put("attack", (int)(4 * rarity.mult * level));
+        item.autoPrice();
+        return item;
+    }
+    public static Item createRingOfProtection(int level, Rarity rarity) {
+        Item item = new Item("Ring of Protection", "A warding ring.", Slot.RING, rarity, WeaponClass.NONE, 1, 1, level);
+        item.statBonuses.put("defence", (int)(4 * rarity.mult * level));
+        item.autoPrice();
+        return item;
+    }
+    public static Item createRingOfVitality(int level, Rarity rarity) {
+        Item item = new Item("Ring of Vitality", "Pulses with life.", Slot.RING, rarity, WeaponClass.NONE, 1, 1, level);
+        item.statBonuses.put("health", (int)(8 * rarity.mult * level));
+        item.autoPrice();
+        return item;
+    }
+    public static Item createRingOfWisdom(int level, Rarity rarity) {
+        Item item = new Item("Ring of Wisdom", "Arcane resonance.", Slot.RING, rarity, WeaponClass.NONE, 1, 1, level);
+        item.statBonuses.put("mana", (int)(8 * rarity.mult * level));
+        item.autoPrice();
+        return item;
+    }
+    public static Item createRingOfHaste(int level, Rarity rarity) {
+        Item item = new Item("Ring of Haste", "Makes you faster.", Slot.RING, rarity, WeaponClass.NONE, 1, 1, level);
+        item.statBonuses.put("speed", (int)(3 * rarity.mult));
+        item.autoPrice();
+        return item;
+    }
+
+    // ========== MAGE ROBES (lighter chest, mana-focused) ==========
+    public static Item createMageRobes(int level, Rarity rarity) {
+        Item item = new Item("Mage Robes", "Low armour, high mana.", Slot.CHEST, rarity, WeaponClass.NONE, 2, 2, level);
+        item.statBonuses.put("defence", (int)(3 * rarity.mult * level));
+        item.statBonuses.put("mana", (int)(15 * rarity.mult * level));
+        item.statBonuses.put("speed", (int)(1 * rarity.mult));
+        item.autoPrice();
+        return item;
+    }
+    public static Item createEnchantedRobes(int level, Rarity rarity) {
+        Item item = new Item("Enchanted Robes", "Shimmering robes.", Slot.CHEST, rarity, WeaponClass.NONE, 2, 2, level);
+        item.statBonuses.put("defence", (int)(2 * rarity.mult * level));
+        item.statBonuses.put("mana", (int)(10 * rarity.mult * level));
+        item.statBonuses.put("critChance", (int)(3 * rarity.mult * level));
+        item.autoPrice();
+        return item;
+    }
+
+    // ========== WIZARD HAT ==========
+    public static Item createWizardHat(int level, Rarity rarity) {
+        Item item = new Item("Wizard Hat", "Brimming with magic.", Slot.HELMET, rarity, WeaponClass.NONE, 2, 1, level);
+        item.statBonuses.put("defence", (int)(2 * rarity.mult * level));
+        item.statBonuses.put("mana", (int)(10 * rarity.mult * level));
+        item.autoPrice();
+        return item;
+    }
+
+    // ========== OFFHAND CASTER ITEMS ==========
+    public static Item createSpellbook(int level, Rarity rarity) {
+        Item item = new Item("Spellbook", "Arcane knowledge.", Slot.OFFHAND, rarity, WeaponClass.NECROMANCY, 1, 2, level);
+        item.statBonuses.put("mana", (int)(12 * rarity.mult * level));
+        item.statBonuses.put("attack", (int)(3 * rarity.mult * level));
+        item.autoPrice();
+        return item;
+    }
+    public static Item createCrystalOrb(int level, Rarity rarity) {
+        Item item = new Item("Crystal Orb", "Focuses magical energy.", Slot.OFFHAND, rarity, WeaponClass.NONE, 1, 1, level);
+        item.statBonuses.put("critChance", (int)(4 * rarity.mult * level));
+        item.statBonuses.put("mana", (int)(5 * rarity.mult * level));
+        item.autoPrice();
+        return item;
+    }
+
+    // ========== ADDITIONAL WEAPONS ==========
+    public static Item createDagger(int level, Rarity rarity) {
+        Item item = new Item("Dagger", "Quick stabbing blade.", Slot.WEAPON, rarity, WeaponClass.MELEE, 1, 2, level);
+        item.statBonuses.put("attack", (int)(5 * rarity.mult * level));
+        item.statBonuses.put("speed", (int)(4 * rarity.mult));
+        item.statBonuses.put("critChance", (int)(3 * rarity.mult * level));
+        item.autoPrice();
+        return item;
+    }
+    public static Item createBattleAxe(int level, Rarity rarity) {
+        Item item = new Item("Battle Axe", "Brutal two-handed axe.", Slot.WEAPON, rarity, WeaponClass.MELEE, 2, 3, level);
+        item.statBonuses.put("attack", (int)(16 * rarity.mult * level));
+        item.twoHanded = true;
+        item.autoPrice();
+        return item;
+    }
+    public static Item createShortbow(int level, Rarity rarity) {
+        Item item = new Item("Shortbow", "A compact bow.", Slot.WEAPON, rarity, WeaponClass.RANGED, 1, 3, level);
+        item.statBonuses.put("attack", (int)(5 * rarity.mult * level));
+        item.statBonuses.put("range", (int)(20 * rarity.mult));
+        item.statBonuses.put("speed", (int)(2 * rarity.mult));
+        item.autoPrice();
+        return item;
+    }
+    public static Item createWand(int level, Rarity rarity) {
+        Item item = new Item("Wand", "A small magical wand.", Slot.WEAPON, rarity, WeaponClass.HOLY, 1, 2, level);
+        item.statBonuses.put("attack", (int)(4 * rarity.mult * level));
+        item.statBonuses.put("mana", (int)(8 * rarity.mult * level));
+        item.statBonuses.put("heal", (int)(2 * rarity.mult * level));
+        item.autoPrice();
+        return item;
     }
 
     // Getters and setters
@@ -336,4 +512,6 @@ public class Item {
     public int getSellPrice() { return sellPrice; }
     public void setBuyPrice(int price) { this.buyPrice = price; }
     public void setSellPrice(int price) { this.sellPrice = price; }
+    public boolean isTwoHanded() { return twoHanded; }
+    public void setTwoHanded(boolean twoHanded) { this.twoHanded = twoHanded; }
 }

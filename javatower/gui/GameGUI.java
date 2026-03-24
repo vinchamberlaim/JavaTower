@@ -16,9 +16,11 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javatower.entities.*;
 import javatower.entities.Tower.TowerType;
+import javatower.entities.towers.SupportTower;
 import javatower.factories.TowerFactory;
 import javatower.systems.Shop;
 import javatower.systems.SetBonusManager;
+import javatower.database.DatabaseManager;
 import javatower.util.Constants;
 import javatower.util.GameState;
 import java.util.ArrayList;
@@ -46,6 +48,9 @@ public class GameGUI extends Application {
 
     // Tower placement mode
     private TowerType pendingTowerType = null;
+
+    // Selected tower for upgrading
+    private Tower selectedTower = null;
 
     // Bone piles from dead enemies
     private List<BonePile> bonePiles = new ArrayList<>();
@@ -86,10 +91,18 @@ public class GameGUI extends Application {
         Button newGameBtn = createMenuButton("New Game");
         newGameBtn.setOnAction(e -> startNewGame());
 
+        Button loadGameBtn = createMenuButton("Load Game");
+        loadGameBtn.setOnAction(e -> loadSavedGame());
+        try {
+            loadGameBtn.setDisable(!DatabaseManager.getInstance().hasSaveFile());
+        } catch (Exception ex) {
+            loadGameBtn.setDisable(true);
+        }
+
         Button quitBtn = createMenuButton("Quit");
         quitBtn.setOnAction(e -> primaryStage.close());
 
-        menuBox.getChildren().addAll(title, subtitle, newGameBtn, quitBtn);
+        menuBox.getChildren().addAll(title, subtitle, newGameBtn, loadGameBtn, quitBtn);
 
         currentScene = new Scene(menuBox, Constants.SCREEN_WIDTH + 250,
                 Constants.SCREEN_HEIGHT + 60);
@@ -103,6 +116,37 @@ public class GameGUI extends Application {
         hero = new Hero("Hero");
         hero.setPosition(100, Constants.SCREEN_HEIGHT / 2.0);
         waveManager = new javatower.systems.WaveManager();
+        towers = new ArrayList<>();
+        bonePiles = new ArrayList<>();
+        shop = new Shop();
+        gameState = GameState.PLAYING;
+
+        // Initialize meta_progression row if first run
+        try {
+            DatabaseManager.getInstance().saveMetaProgression(0, 0,
+                    hero.getInventory().getWidth(), hero.getInventory().getHeight());
+        } catch (Exception ex) { /* DB optional */ }
+
+        showGameScene();
+        startWave();
+        startGameLoop();
+    }
+
+    /**
+     * Loads a saved game from the database.
+     */
+    public void loadSavedGame() {
+        DatabaseManager db = DatabaseManager.getInstance();
+        Hero loaded = db.loadGame();
+        if (loaded == null) return;
+
+        hero = loaded;
+        int savedWave = db.loadWave();
+        waveManager = new javatower.systems.WaveManager();
+        // Advance wave manager to saved wave
+        while (waveManager.getCurrentWave() < savedWave) {
+            waveManager.nextWave();
+        }
         towers = new ArrayList<>();
         bonePiles = new ArrayList<>();
         shop = new Shop();
@@ -158,9 +202,11 @@ public class GameGUI extends Application {
         siegeTowerBtn.setOnAction(e -> pendingTowerType = TowerType.SIEGE);
         Button supportTowerBtn = createActionButton("Sup T");
         supportTowerBtn.setOnAction(e -> pendingTowerType = TowerType.SUPPORT);
+        Button upgradeTowerBtn = createActionButton("Upgrade T");
+        upgradeTowerBtn.setOnAction(e -> upgradeTower());
 
         actionBar.getChildren().addAll(skillBtn, shopBtn, skillTreeBtn, inventoryBtn, forgeBtn,
-                arrowTowerBtn, magicTowerBtn, siegeTowerBtn, supportTowerBtn);
+                arrowTowerBtn, magicTowerBtn, siegeTowerBtn, supportTowerBtn, upgradeTowerBtn);
 
         BorderPane root = new BorderPane();
         root.setCenter(gameBoard);
@@ -202,18 +248,62 @@ public class GameGUI extends Application {
 
         List<Enemy> enemies = waveManager.getActiveEnemies();
 
+        // Snapshot hero HP to detect enemy hits
+        int heroPrevHP = hero.getCurrentHealth();
+
         // Update hero
         hero.update(dt, enemies);
+
+        // Spawn hero attack effects
+        if (hero.didAttackThisFrame()) {
+            Enemy target = hero.getLastAttackTarget();
+            if (target != null) {
+                spawnHeroAttackEffect(target);
+                // Damage number
+                gameBoard.addEffect(VisualEffect.createDamageNumber(
+                        target.getX(), target.getY(), hero.getLastDamageDealt(), hero.wasAttackCrit()));
+            }
+            hero.clearFrameFlags();
+        }
 
         // Update enemies
         for (Enemy e : enemies) {
             e.update(dt, hero);
         }
 
-        // Update towers
+        // Detect enemy damage on hero (HP dropped)
+        int heroHPLost = heroPrevHP - hero.getCurrentHealth();
+        if (heroHPLost > 0) {
+            gameBoard.addEffect(VisualEffect.createDamageNumber(
+                    hero.getX(), hero.getY(), heroHPLost, false));
+        }
+
+        // Update towers + spawn tower projectiles
         for (Tower t : towers) {
             t.update(dt, enemies);
+            if (t.didFireThisFrame() && t.getLastTarget() != null) {
+                Enemy tgt = t.getLastTarget();
+                switch (t.getType()) {
+                    case ARROW:
+                        gameBoard.addEffect(VisualEffect.createTowerArrow(t.getX(), t.getY(), tgt.getX(), tgt.getY()));
+                        break;
+                    case MAGIC:
+                        gameBoard.addEffect(VisualEffect.createTowerMagic(t.getX(), t.getY(), tgt.getX(), tgt.getY()));
+                        break;
+                    case SIEGE:
+                        gameBoard.addEffect(VisualEffect.createTowerSiege(t.getX(), t.getY(), tgt.getX(), tgt.getY()));
+                        break;
+                    default: break;
+                }
+            }
+            // Support towers heal the hero each cycle
+            if (t instanceof SupportTower) {
+                ((SupportTower) t).supportHero(hero);
+            }
         }
+
+        // Update visual effects
+        gameBoard.updateEffects(dt);
 
         // Remove dead enemies — reward hero and spawn bone piles
         List<Enemy> dead = new ArrayList<>();
@@ -223,6 +313,9 @@ public class GameGUI extends Application {
         for (Enemy e : dead) {
             hero.gainExperience(e.getExperienceValue());
             hero.gainGold(e.getGoldValue());
+            // Visual: gold + XP pickup
+            gameBoard.addEffect(VisualEffect.createGoldPickup(e.getX(), e.getY(), e.getGoldValue()));
+            gameBoard.addEffect(VisualEffect.createImpactBurst(e.getX(), e.getY(), javafx.scene.paint.Color.web("#e94560")));
             // Spawn bone pile at death location
             bonePiles.add(new BonePile(e.getX(), e.getY(), e.getRadius(), e.getType().tier));
             waveManager.onEnemyKilled(e);
@@ -237,12 +330,20 @@ public class GameGUI extends Application {
         // Check hero death
         if (!hero.isAlive()) {
             stopGameLoop();
+            try { DatabaseManager.getInstance().updateMaxWave(waveManager.getCurrentWave()); }
+            catch (Exception ex) { /* DB optional */ }
             showGameOver(false);
             return;
         }
 
         // Check wave complete → auto next wave
         if (waveManager.isWaveComplete() && !waitingForNextWave) {
+            // Auto-save on wave complete
+            try {
+                DatabaseManager.getInstance().saveGame(hero, waveManager.getCurrentWave());
+                DatabaseManager.getInstance().updateMaxWave(waveManager.getCurrentWave());
+            } catch (Exception ex) { /* DB optional */ }
+
             if (waveManager.getCurrentWave() >= Constants.MAX_WAVES) {
                 stopGameLoop();
                 showGameOver(true);
@@ -278,8 +379,55 @@ public class GameGUI extends Application {
             return;
         }
 
+        // Check if clicking on an existing tower → select it for upgrade
+        for (Tower t : towers) {
+            if (Math.abs(t.getX() - screenX) < 32 && Math.abs(t.getY() - screenY) < 32) {
+                selectedTower = t;
+                return;
+            }
+        }
+        selectedTower = null;
+
         // Click = move hero to that position
         hero.moveTo(screenX, screenY);
+    }
+
+    /**
+     * Upgrades the currently selected tower if the hero can afford it.
+     */
+    private void upgradeTower() {
+        if (selectedTower == null) return;
+        if (selectedTower.getUpgradeLevel() >= 3) return;
+        int cost = selectedTower.getUpgradeCost();
+        if (hero.spendGold(cost)) {
+            selectedTower.upgrade();
+        }
+        selectedTower = null;
+    }
+
+    /**
+     * Spawns visual attack effects based on the hero's equipped weapon class.
+     */
+    private void spawnHeroAttackEffect(Enemy target) {
+        double hx = hero.getX(), hy = hero.getY();
+        double tx = target.getX(), ty = target.getY();
+        Item.WeaponClass wc = hero.getLastAttackWeaponClass();
+        switch (wc) {
+            case RANGED:
+                gameBoard.addEffect(VisualEffect.createArrow(hx, hy, tx, ty));
+                break;
+            case NECROMANCY:
+                gameBoard.addEffect(VisualEffect.createNecroBolt(hx, hy, tx, ty));
+                break;
+            case HOLY:
+                gameBoard.addEffect(VisualEffect.createHolySmite(hx, hy, tx, ty));
+                break;
+            case MELEE:
+            default:
+                double angle = Math.atan2(ty - hy, tx - hx);
+                gameBoard.addEffect(VisualEffect.createMeleeSlash(tx, ty, angle));
+                break;
+        }
     }
 
     private void useSkill() {

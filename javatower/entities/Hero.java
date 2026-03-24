@@ -8,6 +8,7 @@ import javatower.entities.Item;
 import javatower.entities.Item.WeaponClass;
 import javatower.entities.Item.EquipmentSet;
 import javatower.util.Constants;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -15,7 +16,8 @@ import java.util.Map;
  * Represents the player-controlled hero character.
  */
 public class Hero extends Entity {
-    private Item weapon, offhand, helmet, chest, legs, boots, accessory1, accessory2;
+    private Item weapon, offhand, helmet, chest, legs, boots, gloves, amulet;
+    private Item[] rings = new Item[10];
 
     private int level = 1;
     private int experience = 0;
@@ -37,6 +39,13 @@ public class Hero extends Entity {
     private SkillTree combatTree, magicTree, utilityTree;
     private SkillProgression skillProgression;
 
+    // Last attack result (for visual effect spawning)
+    private int lastDamageDealt;
+    private boolean lastAttackCrit;
+    private WeaponClass lastAttackWeaponClass = WeaponClass.MELEE;
+    private Enemy lastAttackTarget;
+    private boolean attackedThisFrame;
+
     public Hero(String name) {
         setName(name);
         setMaxHealth(100);
@@ -47,6 +56,51 @@ public class Hero extends Entity {
         setRadius(Constants.HERO_RADIUS);
         inventory = new Inventory(3, 3);
         skillProgression = new SkillProgression();
+        initSkillTrees();
+    }
+
+    /**
+     * Initializes the three skill trees with branching nodes.
+     */
+    private void initSkillTrees() {
+        // --- COMBAT TREE ---
+        combatTree = new SkillTree("Combat");
+        combatTree.addNode(new javatower.systems.SkillNode("c1", "Sharpen", "+3 Attack", "combat", 1,
+                null, Map.of("attack", 3), null));
+        combatTree.addNode(new javatower.systems.SkillNode("c2", "Precision", "+5% Crit", "combat", 1,
+                java.util.List.of("c1"), Map.of("critChance", 5), null));
+        combatTree.addNode(new javatower.systems.SkillNode("c3", "Berserker", "+5 ATK, +10 HP", "combat", 2,
+                java.util.List.of("c2"), Map.of("attack", 5, "maxHealth", 10), null));
+        combatTree.addNode(new javatower.systems.SkillNode("c4", "Lethal Strike", "+8% Crit", "combat", 2,
+                java.util.List.of("c2"), Map.of("critChance", 8), null));
+        combatTree.addNode(new javatower.systems.SkillNode("c5", "Warlord", "+8 ATK, +5 DEF", "combat", 3,
+                java.util.List.of("c3", "c4"), Map.of("attack", 8, "defence", 5), null));
+
+        // --- MAGIC TREE ---
+        magicTree = new SkillTree("Magic");
+        magicTree.addNode(new javatower.systems.SkillNode("m1", "Arcane Mind", "+15 Mana", "magic", 1,
+                null, Map.of("maxMana", 15), null));
+        magicTree.addNode(new javatower.systems.SkillNode("m2", "Inner Light", "+20 HP", "magic", 1,
+                java.util.List.of("m1"), Map.of("maxHealth", 20), null));
+        magicTree.addNode(new javatower.systems.SkillNode("m3", "Mana Surge", "+25 Mana", "magic", 2,
+                java.util.List.of("m1"), Map.of("maxMana", 25), null));
+        magicTree.addNode(new javatower.systems.SkillNode("m4", "Healing Aura", "+30 HP", "magic", 2,
+                java.util.List.of("m2"), Map.of("maxHealth", 30), null));
+        magicTree.addNode(new javatower.systems.SkillNode("m5", "Archmage", "+20 Mana, +20 HP", "magic", 3,
+                java.util.List.of("m3", "m4"), Map.of("maxMana", 20, "maxHealth", 20), null));
+
+        // --- UTILITY TREE ---
+        utilityTree = new SkillTree("Utility");
+        utilityTree.addNode(new javatower.systems.SkillNode("u1", "Thick Skin", "+4 DEF", "utility", 1,
+                null, Map.of("defence", 4), null));
+        utilityTree.addNode(new javatower.systems.SkillNode("u2", "Fleet Foot", "+15 Speed", "utility", 1,
+                java.util.List.of("u1"), Map.of("speed", 15), null));
+        utilityTree.addNode(new javatower.systems.SkillNode("u3", "Iron Wall", "+6 DEF, +15 HP", "utility", 2,
+                java.util.List.of("u1"), Map.of("defence", 6, "maxHealth", 15), null));
+        utilityTree.addNode(new javatower.systems.SkillNode("u4", "Nimble", "+10% Crit, +10 Speed", "utility", 2,
+                java.util.List.of("u2"), Map.of("critChance", 10, "speed", 10), null));
+        utilityTree.addNode(new javatower.systems.SkillNode("u5", "Survivor", "+8 DEF, +25 HP", "utility", 3,
+                java.util.List.of("u3", "u4"), Map.of("defence", 8, "maxHealth", 25), null));
     }
 
     @Override
@@ -107,6 +161,8 @@ public class Hero extends Entity {
             }
             if (nearest != null && minDist <= effectiveRange + nearest.getRadius()) {
                 attackEnemy(nearest);
+                lastAttackTarget = nearest;
+                attackedThisFrame = true;
                 attackTimer = 0;
 
                 // Fire 4pc: AoE splash — nearby enemies take 30% of damage dealt
@@ -156,6 +212,8 @@ public class Hero extends Entity {
         int damage = crit ? (int)(baseDamage * 1.5) : baseDamage;
         int dealt = target.takeDamage(damage);
         lastDamageDealt = dealt;
+        lastAttackCrit = crit;
+        lastAttackWeaponClass = wc;
 
         // Death 4pc: life steal
         double lifeSteal = SetBonusManager.getDeathLifeSteal(eq);
@@ -172,9 +230,12 @@ public class Hero extends Entity {
         return dealt;
     }
 
-    /** Last damage dealt (for Fire 4pc AoE splash calculation in GameGUI). */
-    private int lastDamageDealt;
     public int getLastDamageDealt() { return lastDamageDealt; }
+    public boolean wasAttackCrit() { return lastAttackCrit; }
+    public WeaponClass getLastAttackWeaponClass() { return lastAttackWeaponClass; }
+    public Enemy getLastAttackTarget() { return lastAttackTarget; }
+    public boolean didAttackThisFrame() { return attackedThisFrame; }
+    public void clearFrameFlags() { attackedThisFrame = false; }
 
     /**
      * Gain experience and check for level up.
@@ -201,6 +262,13 @@ public class Hero extends Entity {
         skillPoints++;
         level++;
         experienceToNextLevel = (int)(experienceToNextLevel * 1.2);
+
+        // Expand inventory every 3 levels
+        if (level % 3 == 0) {
+            int newW = inventory.getWidth() + 1;
+            int newH = inventory.getHeight() + 1;
+            inventory.expand(newW, newH);
+        }
     }
 
     /**
@@ -226,8 +294,8 @@ public class Hero extends Entity {
 
     /**
      * Equip an item, returning the previously equipped item in that slot.
-     * @param item Item to equip
-     * @return Previously equipped item, or null
+     * Two-handed weapons block the offhand slot.
+     * Rings support up to 10 slots.
      */
     public Item equipItem(Item item) {
         if (item == null) return null;
@@ -236,8 +304,18 @@ public class Hero extends Entity {
             case WEAPON:
                 previous = weapon;
                 weapon = item;
+                // Two-handed weapon clears offhand
+                if (item.isTwoHanded() && offhand != null) {
+                    // Return offhand to inventory handled by caller
+                    Item displacedOffhand = offhand;
+                    offhand = null;
+                    // Store displaced for caller — attach to previous if possible
+                    if (previous == null) previous = displacedOffhand;
+                }
                 break;
             case OFFHAND:
+                // Can't equip offhand if weapon is two-handed
+                if (weapon != null && weapon.isTwoHanded()) return null;
                 previous = offhand;
                 offhand = item;
                 break;
@@ -257,18 +335,65 @@ public class Hero extends Entity {
                 previous = boots;
                 boots = item;
                 break;
-            case ACCESSORY:
-                if (accessory1 == null) {
-                    accessory1 = item;
-                } else {
-                    previous = accessory2;
-                    accessory2 = item;
+            case GLOVES:
+                previous = gloves;
+                gloves = item;
+                break;
+            case AMULET:
+                previous = amulet;
+                amulet = item;
+                break;
+            case RING:
+                // Find first empty ring slot (up to 10)
+                for (int i = 0; i < rings.length; i++) {
+                    if (rings[i] == null) {
+                        rings[i] = item;
+                        return null; // no previous
+                    }
                 }
+                // All 10 full — replace last ring
+                previous = rings[rings.length - 1];
+                rings[rings.length - 1] = item;
                 break;
             default:
                 break;
         }
         return previous;
+    }
+
+    /**
+     * Unequip item from a specific slot. Returns the removed item.
+     * @param slotName one of: weapon, offhand, helmet, chest, legs, boots, gloves, amulet, ring0-ring9
+     */
+    public Item unequipSlot(String slotName) {
+        Item removed = null;
+        switch (slotName) {
+            case "weapon": removed = weapon; weapon = null; break;
+            case "offhand": removed = offhand; offhand = null; break;
+            case "helmet": removed = helmet; helmet = null; break;
+            case "chest": removed = chest; chest = null; break;
+            case "legs": removed = legs; legs = null; break;
+            case "boots": removed = boots; boots = null; break;
+            case "gloves": removed = gloves; gloves = null; break;
+            case "amulet": removed = amulet; amulet = null; break;
+            default:
+                if (slotName.startsWith("ring")) {
+                    int idx = Integer.parseInt(slotName.substring(4));
+                    if (idx >= 0 && idx < rings.length) {
+                        removed = rings[idx];
+                        rings[idx] = null;
+                    }
+                }
+                break;
+        }
+        return removed;
+    }
+
+    /** Returns number of equipped rings. */
+    public int getEquippedRingCount() {
+        int count = 0;
+        for (Item r : rings) if (r != null) count++;
+        return count;
     }
 
     /**
@@ -314,8 +439,7 @@ public class Hero extends Entity {
      * Returns the first equipped item of a given weapon class, or null.
      */
     public Item getEquippedOfClass(WeaponClass wc) {
-        Item[] equipped = {weapon, offhand, helmet, chest, legs, boots, accessory1, accessory2};
-        for (Item item : equipped) {
+        for (Item item : getEquippedItems()) {
             if (item != null && item.getWeaponClass() == wc) return item;
         }
         return null;
@@ -397,10 +521,25 @@ public class Hero extends Entity {
     public Inventory getInventory() { return inventory; }
     public SkillProgression getSkillProgression() { return skillProgression; }
 
-    /** Returns all 8 equipment slots as an array (some may be null). */
+    /** Returns all equipped items (non-null only). */
     public Item[] getEquippedItems() {
-        return new Item[] { weapon, offhand, helmet, chest, legs, boots, accessory1, accessory2 };
+        List<Item> list = new ArrayList<>();
+        Item[] fixed = { weapon, offhand, helmet, chest, legs, boots, gloves, amulet };
+        for (Item i : fixed) if (i != null) list.add(i);
+        for (Item r : rings) if (r != null) list.add(r);
+        return list.toArray(new Item[0]);
     }
+
+    // Equipment slot getters
+    public Item getWeapon() { return weapon; }
+    public Item getOffhand() { return offhand; }
+    public Item getHelmet() { return helmet; }
+    public Item getChest() { return chest; }
+    public Item getLegs() { return legs; }
+    public Item getBoots() { return boots; }
+    public Item getGloves() { return gloves; }
+    public Item getAmulet() { return amulet; }
+    public Item[] getRings() { return rings; }
 
     /** Effective attack range — melee base, plus ranged weapon range stat and ranged skill bonus. */
     public double getEffectiveRange() {

@@ -19,6 +19,8 @@ public abstract class Tower extends Entity {
     private double attackTimer;    // time since last attack
     private int upgradeLevel;
     private int upgradeCost;
+    private Enemy lastTarget;
+    private boolean firedThisFrame;
 
     public Tower(TowerType type, int range, int damage, int attackSpeed, int upgradeCost) {
         this.type = type;
@@ -39,8 +41,14 @@ public abstract class Tower extends Entity {
      */
     public void update(double dt, List<Enemy> enemies) {
         if (!isAlive()) return;
+        firedThisFrame = false;
         attackTimer += dt;
         if (attackTimer >= attackCooldown) {
+            Enemy target = selectTarget(enemies);
+            if (target != null) {
+                lastTarget = target;
+                firedThisFrame = true;
+            }
             attack(enemies);
             attackTimer = 0;
         }
@@ -69,4 +77,6 @@ public abstract class Tower extends Entity {
     public void setDamage(int damage) { this.damage = damage; }
     public void setRange(int range) { this.range = range; }
     public void setAttackCooldown(double cd) { this.attackCooldown = cd; }
+    public Enemy getLastTarget() { return lastTarget; }
+    public boolean didFireThisFrame() { return firedThisFrame; }
 }

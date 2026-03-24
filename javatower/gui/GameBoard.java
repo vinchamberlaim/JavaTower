@@ -11,6 +11,7 @@ import javatower.entities.Tower;
 import javatower.entities.BonePile;
 import javatower.util.Constants;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -21,6 +22,7 @@ public class GameBoard extends Canvas {
     private List<Enemy> enemies;
     private List<Tower> towers;
     private List<BonePile> bonePiles = new ArrayList<>();
+    private List<VisualEffect> effects = new ArrayList<>();
 
     public GameBoard() {
         setWidth(Constants.SCREEN_WIDTH);
@@ -67,7 +69,26 @@ public class GameBoard extends Canvas {
         if (hero != null && hero.isAlive()) {
             drawHero(hero, gc);
         }
+
+        // Draw visual effects (on top of everything)
+        for (VisualEffect effect : effects) {
+            effect.render(gc);
+        }
     }
+
+    /** Update and remove expired effects. Call each frame. */
+    public void updateEffects(double dt) {
+        Iterator<VisualEffect> it = effects.iterator();
+        while (it.hasNext()) {
+            if (it.next().update(dt)) it.remove();
+        }
+    }
+
+    public void addEffect(VisualEffect effect) {
+        effects.add(effect);
+    }
+
+    public List<VisualEffect> getEffects() { return effects; }
 
     public void drawGrid(GraphicsContext gc) {
         gc.setStroke(Color.web("#1a1a2e", 0.3));

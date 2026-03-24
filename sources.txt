@@ -25,6 +25,7 @@ javatower\factories\TowerFactory.java
 javatower\gui\GameBoard.java
 javatower\gui\GameGUI.java
 javatower\gui\HeroPanel.java
+javatower\gui\VisualEffect.java
 javatower\gui\InventoryPanel.java
 javatower\gui\ForgePanel.java
 javatower\gui\ShopPanel.java
