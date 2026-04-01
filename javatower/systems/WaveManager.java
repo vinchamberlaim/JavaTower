@@ -4,9 +4,11 @@ import java.util.List;
 import java.util.ArrayList;
 import javatower.entities.Enemy;
 import javatower.factories.EnemyFactory;
+import javatower.util.Logger;
 
 /**
  * Spawns enemies and manages wave progression.
+ * Supports random wave modifiers.
  */
 public class WaveManager {
     private int currentWave = 1;
@@ -14,12 +16,21 @@ public class WaveManager {
     private List<Enemy> activeEnemies = new ArrayList<>();
     private boolean waveInProgress = false;
     private boolean bossWave = false;
+    private WaveModifier currentModifier = WaveModifier.NONE;
 
     /**
-     * Starts a new wave.
+     * Starts a new wave with random modifier.
      */
     public void startWave() {
         bossWave = (currentWave % 5 == 0 || currentWave == 30);
+        
+        // Select random wave modifier (boss waves have no modifiers)
+        currentModifier = bossWave ? WaveModifier.NONE : WaveModifier.randomModifier(currentWave);
+        
+        if (currentModifier.hasModifier()) {
+            Logger.info("Wave Modifier: " + currentModifier.getName() + " - " + currentModifier.getDescription());
+        }
+        
         activeEnemies = spawnEnemies();
         enemiesRemaining = activeEnemies.size();
         waveInProgress = true;
@@ -27,6 +38,7 @@ public class WaveManager {
 
     /**
      * Spawns enemies for the current wave.
+     * Applies wave modifiers.
      */
     public List<Enemy> spawnEnemies() {
         if (bossWave) {
@@ -40,7 +52,10 @@ public class WaveManager {
                 return miniBoss;
             }
         }
-        return EnemyFactory.createWaveEnemies(currentWave);
+        
+        // Apply count multiplier from modifier
+        int count = (int)(getEnemyCount() * currentModifier.getEnemyCountMultiplier());
+        return EnemyFactory.createWaveEnemies(currentWave, count, currentModifier);
     }
 
     /**
@@ -78,4 +93,13 @@ public class WaveManager {
     public List<Enemy> getActiveEnemies() { return activeEnemies; }
     public boolean isWaveInProgress() { return waveInProgress; }
     public boolean isBossWave() { return bossWave; }
+    public WaveModifier getCurrentModifier() { return currentModifier; }
+    public boolean hasActiveModifier() { return currentModifier != WaveModifier.NONE; }
+    
+    /**
+     * Forcibly sets a modifier (for testing/debug).
+     */
+    public void setModifier(WaveModifier mod) { 
+        this.currentModifier = mod; 
+    }
 }

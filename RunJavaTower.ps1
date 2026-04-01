@@ -89,7 +89,7 @@ if ($sqliteJar) {
 
 # ---------- STEP 4: Compile all sources in one pass ----------
 Write-Step "[4/5] Compiling JavaTower..."
-$outDir = Join-Path $ProjectDir "out"
+$outDir = Join-Path $ProjectDir "out2"
 if (Test-Path $outDir) { Remove-Item $outDir -Recurse -Force }
 New-Item -ItemType Directory -Path $outDir | Out-Null
 
@@ -124,6 +124,7 @@ Write-Step "[5/5] Launching JavaTower..."
 Write-Host ""
 Write-Host "  ========================================" -ForegroundColor Cyan
 Write-Host "       Starting game... Have fun!"          -ForegroundColor Cyan
+Write-Host "       (Database will auto-create on first run)" -ForegroundColor DarkGray
 Write-Host "  ========================================" -ForegroundColor Cyan
 Write-Host ""
 

@@ -35,19 +35,19 @@ public class ForgePanel extends VBox {
         setStyle("-fx-background-color: #1a1a2e;");
 
         Label header = new Label("FORGE");
-        header.setFont(Font.font("Monospaced", FontWeight.BOLD, 28));
+        header.setFont(Font.font("Monospaced", FontWeight.BOLD, 36));
         header.setStyle("-fx-text-fill: #f97316;");
 
         Label desc = new Label("Combine 2 identical items (same name + rarity) to upgrade tier.");
-        desc.setFont(Font.font("Monospaced", 11));
+        desc.setFont(Font.font("Monospaced", 16));
         desc.setStyle("-fx-text-fill: #aaa;");
 
         goldLabel = new Label();
-        goldLabel.setFont(Font.font("Monospaced", FontWeight.BOLD, 16));
+        goldLabel.setFont(Font.font("Monospaced", FontWeight.BOLD, 22));
         goldLabel.setStyle("-fx-text-fill: #eab308;");
 
         statusLabel = new Label("Select two items to forge.");
-        statusLabel.setFont(Font.font("Monospaced", 12));
+        statusLabel.setFont(Font.font("Monospaced", 16));
         statusLabel.setStyle("-fx-text-fill: #4ecca3;");
 
         // Selection display
@@ -57,13 +57,13 @@ public class ForgePanel extends VBox {
         VBox slotA = new VBox(4);
         slotA.setAlignment(Pos.CENTER);
         Label aHeader = new Label("Slot 1");
-        aHeader.setFont(Font.font("Monospaced", FontWeight.BOLD, 12));
+        aHeader.setFont(Font.font("Monospaced", FontWeight.BOLD, 18));
         aHeader.setStyle("-fx-text-fill: #eee;");
         selectALabel = new Label("[empty]");
-        selectALabel.setFont(Font.font("Monospaced", 11));
+        selectALabel.setFont(Font.font("Monospaced", 15));
         selectALabel.setStyle("-fx-text-fill: #888;");
         Button clearA = new Button("Clear");
-        clearA.setStyle("-fx-background-color: #555; -fx-text-fill: white; -fx-font-size: 10;");
+        clearA.setStyle("-fx-background-color: #555; -fx-text-fill: white; -fx-font-size: 14;");
         clearA.setOnAction(e -> { selectedA = null; refresh(); });
         slotA.getChildren().addAll(aHeader, selectALabel, clearA);
 
@@ -74,13 +74,13 @@ public class ForgePanel extends VBox {
         VBox slotB = new VBox(4);
         slotB.setAlignment(Pos.CENTER);
         Label bHeader = new Label("Slot 2");
-        bHeader.setFont(Font.font("Monospaced", FontWeight.BOLD, 12));
+        bHeader.setFont(Font.font("Monospaced", FontWeight.BOLD, 18));
         bHeader.setStyle("-fx-text-fill: #eee;");
         selectBLabel = new Label("[empty]");
-        selectBLabel.setFont(Font.font("Monospaced", 11));
+        selectBLabel.setFont(Font.font("Monospaced", 15));
         selectBLabel.setStyle("-fx-text-fill: #888;");
         Button clearB = new Button("Clear");
-        clearB.setStyle("-fx-background-color: #555; -fx-text-fill: white; -fx-font-size: 10;");
+        clearB.setStyle("-fx-background-color: #555; -fx-text-fill: white; -fx-font-size: 14;");
         clearB.setOnAction(e -> { selectedB = null; refresh(); });
         slotB.getChildren().addAll(bHeader, selectBLabel, clearB);
 
@@ -88,20 +88,20 @@ public class ForgePanel extends VBox {
 
         // Forge button
         forgeBtn = new Button("FORGE!");
-        forgeBtn.setFont(Font.font("Monospaced", FontWeight.BOLD, 16));
+        forgeBtn.setFont(Font.font("Monospaced", FontWeight.BOLD, 22));
         forgeBtn.setStyle("-fx-background-color: #f97316; -fx-text-fill: white; -fx-cursor: hand;");
         forgeBtn.setDisable(true);
         forgeBtn.setOnAction(e -> doForge());
 
         // Item list
         Label invHeader = new Label("-- Inventory --");
-        invHeader.setFont(Font.font("Monospaced", FontWeight.BOLD, 14));
+        invHeader.setFont(Font.font("Monospaced", FontWeight.BOLD, 20));
         invHeader.setStyle("-fx-text-fill: #22d3ee;");
 
         itemListSection = new VBox(4);
 
         Button backBtn = new Button("Back to Game");
-        backBtn.setFont(Font.font("Monospaced", FontWeight.BOLD, 14));
+        backBtn.setFont(Font.font("Monospaced", FontWeight.BOLD, 20));
         backBtn.setStyle("-fx-background-color: #e94560; -fx-text-fill: white; -fx-cursor: hand;");
         backBtn.setOnAction(e -> gui.returnToGame());
 
@@ -175,22 +175,22 @@ public class ForgePanel extends VBox {
             String setTag = item.getEquipmentSet() != Item.EquipmentSet.NONE
                     ? " {" + item.getEquipmentSet().className + "}" : "";
             Label name = new Label(item.getName() + " [" + item.getRarity().name() + "]" + setTag);
-            name.setFont(Font.font("Monospaced", 11));
+            name.setFont(Font.font("Monospaced", 15));
             name.setStyle("-fx-text-fill: " + item.getRarity().color + ";");
-            name.setPrefWidth(280);
+            name.setPrefWidth(360);
 
             Label stats = new Label(item.getStatBonuses().toString());
-            stats.setFont(Font.font("Monospaced", 10));
+            stats.setFont(Font.font("Monospaced", 14));
             stats.setStyle("-fx-text-fill: #aaa;");
-            stats.setPrefWidth(150);
+            stats.setPrefWidth(200);
 
             Button selA = new Button("Slot 1");
-            selA.setStyle("-fx-background-color: #4ecca3; -fx-text-fill: white; -fx-font-size: 10;");
+            selA.setStyle("-fx-background-color: #4ecca3; -fx-text-fill: white; -fx-font-size: 14;");
             final Item ref = item;
             selA.setOnAction(e -> { selectedA = ref; refresh(); });
 
             Button selB = new Button("Slot 2");
-            selB.setStyle("-fx-background-color: #22d3ee; -fx-text-fill: white; -fx-font-size: 10;");
+            selB.setStyle("-fx-background-color: #22d3ee; -fx-text-fill: white; -fx-font-size: 14;");
             selB.setOnAction(e -> { selectedB = ref; refresh(); });
 
             row.getChildren().addAll(name, stats, selA, selB);

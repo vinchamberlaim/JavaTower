@@ -31,21 +31,21 @@ public class SkillTreePanel extends VBox {
         setStyle("-fx-background-color: #1a1a2e;");
 
         Label header = new Label("SKILL TREE");
-        header.setFont(Font.font("Monospaced", FontWeight.BOLD, 28));
+        header.setFont(Font.font("Monospaced", FontWeight.BOLD, 36));
         header.setStyle("-fx-text-fill: #e94560;");
 
         pointsLabel = new Label();
-        pointsLabel.setFont(Font.font("Monospaced", FontWeight.BOLD, 16));
+        pointsLabel.setFont(Font.font("Monospaced", FontWeight.BOLD, 22));
         pointsLabel.setStyle("-fx-text-fill: #a855f7;");
 
         statusLabel = new Label();
-        statusLabel.setFont(Font.font("Monospaced", 12));
+        statusLabel.setFont(Font.font("Monospaced", 16));
         statusLabel.setStyle("-fx-text-fill: #4ecca3;");
 
         treeContent = new VBox(8);
 
         Button backBtn = new Button("Back to Game");
-        backBtn.setFont(Font.font("Monospaced", FontWeight.BOLD, 14));
+        backBtn.setFont(Font.font("Monospaced", FontWeight.BOLD, 20));
         backBtn.setStyle("-fx-background-color: #e94560; -fx-text-fill: white; -fx-cursor: hand;");
         backBtn.setOnAction(e -> gui.returnToGame());
 
@@ -71,7 +71,7 @@ public class SkillTreePanel extends VBox {
 
         if (hero.getCombatTree() == null && hero.getMagicTree() == null && hero.getUtilityTree() == null) {
             Label noTrees = new Label("No skill trees initialized yet.\nSkill trees unlock as you level up.");
-            noTrees.setFont(Font.font("Monospaced", 14));
+            noTrees.setFont(Font.font("Monospaced", 18));
             noTrees.setStyle("-fx-text-fill: #666;");
             treeContent.getChildren().add(noTrees);
         }
@@ -81,7 +81,7 @@ public class SkillTreePanel extends VBox {
         if (tree == null) return;
 
         Label treeHeader = new Label("-- " + treeName.toUpperCase() + " TREE --");
-        treeHeader.setFont(Font.font("Monospaced", FontWeight.BOLD, 14));
+        treeHeader.setFont(Font.font("Monospaced", FontWeight.BOLD, 20));
         treeHeader.setStyle("-fx-text-fill: #22d3ee;");
         treeContent.getChildren().add(treeHeader);
 
@@ -92,17 +92,17 @@ public class SkillTreePanel extends VBox {
 
             String status = node.isUnlocked() ? "[UNLOCKED]" : "[LOCKED]";
             Label nameLabel = new Label(node.getName() + " " + status);
-            nameLabel.setFont(Font.font("Monospaced", 12));
+            nameLabel.setFont(Font.font("Monospaced", 16));
             nameLabel.setStyle(node.isUnlocked() ? "-fx-text-fill: #4ecca3;" : "-fx-text-fill: #eee;");
-            nameLabel.setPrefWidth(250);
+            nameLabel.setPrefWidth(320);
 
             Label descLabel = new Label(node.getDescription());
-            descLabel.setFont(Font.font("Monospaced", 10));
+            descLabel.setFont(Font.font("Monospaced", 14));
             descLabel.setStyle("-fx-text-fill: #aaa;");
-            descLabel.setPrefWidth(200);
+            descLabel.setPrefWidth(260);
 
             Label costLabel = new Label("Cost: " + node.getCost());
-            costLabel.setFont(Font.font("Monospaced", 10));
+            costLabel.setFont(Font.font("Monospaced", 14));
             costLabel.setStyle("-fx-text-fill: #eab308;");
 
             row.getChildren().addAll(nameLabel, descLabel, costLabel);

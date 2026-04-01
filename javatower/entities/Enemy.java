@@ -44,6 +44,12 @@ public abstract class Enemy extends Entity {
     private double attackCooldown;  // seconds between attacks
     private double attackTimer;     // time since last attack
     private double attackRange;     // pixels
+    
+    // Elite modifier system
+    private EliteModifier eliteModifier = EliteModifier.NONE;
+    private double hpRegenTimer = 0;
+    private boolean hasShield = false;
+    private boolean willExplode = false;
 
     public Enemy(EnemyType type, int waveLevel) {
         this.type = type;
@@ -132,6 +138,11 @@ public abstract class Enemy extends Entity {
         if (!isAlive() || hero == null) return;
         attackTimer += dt;
 
+        // Bone pile consumption: tier 3+ enemies grow by eating piles (#20)
+        if (type.tier >= 3 && bonePiles != null) {
+            tryConsumeBonePile();
+        }
+
         double dist = distanceTo(hero);
 
         if (dist <= attackRange) {
@@ -218,9 +229,43 @@ public abstract class Enemy extends Entity {
     // Setters for real-time fields
     public void setSiblings(List<Enemy> siblings) { this.siblings = siblings; }
     public void setBonePiles(List<BonePile> bonePiles) { this.bonePiles = bonePiles; }
+    protected List<BonePile> getBonePiles() { return bonePiles; }
     public void setSpeed(double speed) { this.speed = speed; }
     public void setAttackRange(double range) { this.attackRange = range; }
     public void setAttackCooldown(double cd) { this.attackCooldown = cd; }
+
+    /**
+     * If this enemy is close to a bone pile, consume it to grow stronger.
+     * Radius +20%, ATK +15%, HP +20%. Creates urgency to kill enemies fast.
+     * Also ensures enemy stays on screen after growing.
+     */
+    private void tryConsumeBonePile() {
+        double consumeRange = getRadius() + 20;
+        for (int i = bonePiles.size() - 1; i >= 0; i--) {
+            BonePile bp = bonePiles.get(i);
+            if (bp.isEmpty()) continue;
+            double dx = getX() - bp.getX();
+            double dy = getY() - bp.getY();
+            if (Math.sqrt(dx * dx + dy * dy) <= consumeRange) {
+                bp.consume(bp.getBoneCount()); // consume entire pile
+                if (bp.isEmpty()) bonePiles.remove(i);
+                // Grow stronger (cap max radius)
+                double newRadius = Math.min(getRadius() * 1.2, Constants.ENEMY_RADIUS_MAX);
+                setRadius(newRadius);
+                setAttack((int)(getAttack() * 1.15));
+                setMaxHealth((int)(getMaxHealth() * 1.2));
+                setCurrentHealth(Math.min(getCurrentHealth() + (int)(getMaxHealth() * 0.2), getMaxHealth()));
+                
+                // CRITICAL FIX: Adjust position to stay on screen after growing
+                double r = getRadius();
+                double newX = Math.max(r, Math.min(Constants.SCREEN_WIDTH - r, getX()));
+                double newY = Math.max(r, Math.min(Constants.SCREEN_HEIGHT - r, getY()));
+                setPosition(newX, newY);
+                
+                break; // only consume one pile per frame
+            }
+        }
+    }
 
     /**
      * Summoner hook: consume a nearby bone pile and spawn a minion.
@@ -249,8 +294,67 @@ public abstract class Enemy extends Entity {
         return null;
     }
 
+    // ========== ELITE MODIFIER SYSTEM ==========
+    
+    public void applyEliteModifier(EliteModifier modifier) {
+        this.eliteModifier = modifier;
+        if (modifier == EliteModifier.NONE) return;
+        
+        // Apply stat multipliers
+        int newMaxHp = (int)(getMaxHealth() * modifier.getHpMultiplier());
+        setMaxHealth(newMaxHp);
+        setCurrentHealth(newMaxHp);
+        setAttack((int)(getAttack() * modifier.getDamageMultiplier()));
+        speed *= modifier.getSpeedMultiplier();
+        experienceValue = (int)(experienceValue * modifier.getRewardMultiplier());
+        goldValue = (int)(goldValue * modifier.getRewardMultiplier());
+        
+        // Apply special flags
+        if (modifier == EliteModifier.SHIELDED) {
+            hasShield = true;
+        }
+        if (modifier == EliteModifier.EXPLOSIVE) {
+            willExplode = true;
+        }
+    }
+    
+    public EliteModifier getEliteModifier() { return eliteModifier; }
+    public boolean isElite() { return eliteModifier != EliteModifier.NONE; }
+    public boolean hasShield() { return hasShield; }
+    public boolean willExplode() { return willExplode; }
+    
+    public void breakShield() { hasShield = false; }
+    
+    public void updateRegen(double dt) {
+        if (eliteModifier != EliteModifier.REGENERATING) return;
+        if (!isAlive()) return;
+        
+        hpRegenTimer += dt;
+        if (hpRegenTimer >= 1.0) { // Regen every second
+            hpRegenTimer = 0;
+            int regenAmount = (int)(getMaxHealth() * 0.02); // 2% per second
+            setCurrentHealth(Math.min(getMaxHealth(), getCurrentHealth() + regenAmount));
+        }
+    }
+    
+    @Override
+    public int takeDamage(int damage) {
+        // Shield absorbs first hit
+        if (hasShield) {
+            hasShield = false;
+            return 0; // No damage taken
+        }
+        return super.takeDamage(damage);
+    }
+    
+    @Override
+    public String getName() {
+        return eliteModifier.getDisplayName(type.name());
+    }
+
     // Getters
     public EnemyType getType() { return type; }
+    public EnemyType getEnemyType() { return type; }
     public int getExperienceValue() { return experienceValue; }
     public int getGoldValue() { return goldValue; }
     public int getWaveLevel() { return waveLevel; }

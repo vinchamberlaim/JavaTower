@@ -32,31 +32,31 @@ public class ShopPanel extends VBox {
         setStyle("-fx-background-color: #1a1a2e;");
 
         Label header = new Label("SHOP");
-        header.setFont(Font.font("Monospaced", FontWeight.BOLD, 28));
+        header.setFont(Font.font("Monospaced", FontWeight.BOLD, 36));
         header.setStyle("-fx-text-fill: #e94560;");
 
         goldLabel = new Label();
-        goldLabel.setFont(Font.font("Monospaced", FontWeight.BOLD, 16));
+        goldLabel.setFont(Font.font("Monospaced", FontWeight.BOLD, 22));
         goldLabel.setStyle("-fx-text-fill: #eab308;");
 
         statusLabel = new Label();
-        statusLabel.setFont(Font.font("Monospaced", 12));
+        statusLabel.setFont(Font.font("Monospaced", 16));
         statusLabel.setStyle("-fx-text-fill: #4ecca3;");
 
         Label buyHeader = new Label("-- BUY --");
-        buyHeader.setFont(Font.font("Monospaced", FontWeight.BOLD, 14));
+        buyHeader.setFont(Font.font("Monospaced", FontWeight.BOLD, 20));
         buyHeader.setStyle("-fx-text-fill: #22d3ee;");
 
         buySection = new VBox(5);
 
         Label sellHeader = new Label("-- SELL (Inventory) --");
-        sellHeader.setFont(Font.font("Monospaced", FontWeight.BOLD, 14));
+        sellHeader.setFont(Font.font("Monospaced", FontWeight.BOLD, 20));
         sellHeader.setStyle("-fx-text-fill: #f97316;");
 
         sellSection = new VBox(5);
 
         Button backBtn = new Button("Back to Game");
-        backBtn.setFont(Font.font("Monospaced", FontWeight.BOLD, 14));
+        backBtn.setFont(Font.font("Monospaced", FontWeight.BOLD, 20));
         backBtn.setStyle("-fx-background-color: #e94560; -fx-text-fill: white; -fx-cursor: hand;");
         backBtn.setOnAction(e -> gui.returnToGame());
 
@@ -78,17 +78,17 @@ public class ShopPanel extends VBox {
             String setTag = item.getEquipmentSet() != Item.EquipmentSet.NONE
                     ? " {" + item.getEquipmentSet().className + "}" : "";
             Label name = new Label(item.getName() + " [" + item.getRarity().name() + "]" + setTag);
-            name.setFont(Font.font("Monospaced", 12));
+            name.setFont(Font.font("Monospaced", 16));
             name.setStyle("-fx-text-fill: " + item.getRarity().color + ";");
-            name.setPrefWidth(260);
+            name.setPrefWidth(320);
 
             Label stats = new Label(item.getStatBonuses().toString());
-            stats.setFont(Font.font("Monospaced", 10));
+            stats.setFont(Font.font("Monospaced", 14));
             stats.setStyle("-fx-text-fill: #aaa;");
-            stats.setPrefWidth(150);
+            stats.setPrefWidth(200);
 
             Label price = new Label(item.getBuyPrice() + "g");
-            price.setFont(Font.font("Monospaced", FontWeight.BOLD, 12));
+            price.setFont(Font.font("Monospaced", FontWeight.BOLD, 16));
             price.setStyle("-fx-text-fill: #eab308;");
 
             Button buyBtn = new Button("Buy");
@@ -117,12 +117,12 @@ public class ShopPanel extends VBox {
             String setTag = item.getEquipmentSet() != Item.EquipmentSet.NONE
                     ? " {" + item.getEquipmentSet().className + "}" : "";
             Label name = new Label(item.getName() + " [" + item.getRarity().name() + "]" + setTag);
-            name.setFont(Font.font("Monospaced", 12));
+            name.setFont(Font.font("Monospaced", 16));
             name.setStyle("-fx-text-fill: " + item.getRarity().color + ";");
-            name.setPrefWidth(260);
+            name.setPrefWidth(320);
 
             Label price = new Label("+" + item.getSellPrice() + "g");
-            price.setFont(Font.font("Monospaced", FontWeight.BOLD, 12));
+            price.setFont(Font.font("Monospaced", FontWeight.BOLD, 16));
             price.setStyle("-fx-text-fill: #eab308;");
 
             Button sellBtn = new Button("Sell");

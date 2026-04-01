@@ -1,0 +1,163 @@
+{
+  "project": "JavaTower",
+  "lastUpdated": "2026-03-24",
+  "masterList": "JAVATOWER_IMPROVEMENTS_MASTER_LIST.md",
+  "collaborationDoc": "COPILOT_COLLABORATION_MASTER_LIST.md",
+  "agents": {
+    "copilot": {
+      "name": "GitHub Copilot",
+      "status": "ready-to-pick-tasks",
+      "branch": "master",
+      "lastCommit": "fe43a12",
+      "message": "Review JAVATOWER_IMPROVEMENTS_MASTER_LIST.md and claim tasks in inProgressTasks.copilot"
+    },
+    "kimi": {
+      "name": "Kimi",
+      "status": "implementing",
+      "branch": "master",
+      "lastCommit": "fe43a12",
+      "currentTask": "K9: End-of-wave save system (70% complete)"
+    }
+  },
+  "fileOwnership": {
+    "copilot_exclusive": [
+      "Hero.java — arrow-key movement, kill stats",
+      "Sound system (NEW - pick this if interested)",
+      "Settings menu (NEW - pick this if interested)",
+      "UI animations (NEW - pick this if interested)"
+    ],
+    "kimi_exclusive": [
+      "GameEventBus.java",
+      "Logger.java",
+      "GameBalanceConfig.java",
+      "MiniMap.java",
+      "SaveGameManager.java (IN PROGRESS)",
+      "SaveSlotInfo.java",
+      "GameState.java"
+    ],
+    "shared_carefully": [
+      "GameGUI.java — APPEND ONLY, no edits to existing code",
+      "GameBoard.java — APPEND ONLY, no edits to existing code",
+      "DatabaseManager.java — APPEND ONLY",
+      "sources.txt — append only"
+    ]
+  },
+  "completedTasks": {
+    "kimi": [
+      {"id": "K1", "desc": "GameEventBus observer pattern", "files": ["GameEventBus.java"]},
+      {"id": "K2", "desc": "Logger utility", "files": ["Logger.java"]},
+      {"id": "K3", "desc": "GameBalanceConfig constants", "files": ["GameBalanceConfig.java"]},
+      {"id": "K4", "desc": "Screen shake on critical hits", "files": ["GameBoard.java"]},
+      {"id": "K5", "desc": "Tower placement preview", "files": ["GameBoard.java"]},
+      {"id": "K6", "desc": "Hotkeys 1-4/Q/W/ESC/TAB/M", "files": ["GameGUI.java"]},
+      {"id": "K7", "desc": "Special ability W", "files": ["GameGUI.java"]},
+      {"id": "K8", "desc": "Mini-map (M to toggle)", "files": ["MiniMap.java"]},
+      {"id": "K10", "desc": "Wave Countdown Timer", "files": ["WaveInfoPanel.java"]},
+      {"id": "K11", "desc": "Tower Range Visualization (hover)", "files": ["GameBoard.java"]},
+      {"id": "K12", "desc": "Pause Menu", "files": ["GameGUI.java"]},
+      {"id": "K13", "desc": "Combat Log Panel", "files": ["CombatLogPanel.java"]},
+      {"id": "K14", "desc": "Projectile Trails", "files": ["VisualEffect.java"]},
+      {"id": "K15", "desc": "CombatLogPanel Integration", "files": ["GameGUI.java", "CombatLogPanel.java"]},
+      {"id": "K16", "desc": "Pause Menu Save Button Fix", "files": ["GameGUI.java", "SaveGameManager.java"]},
+      {"id": "K17", "desc": "Wave Countdown Duplicate Fix", "files": ["GameGUI.java"]},
+      {"id": "K18", "desc": "EquipmentSet Enum Fix", "files": ["GameBoard.java"]},
+      {"id": "K19", "desc": "Pixel Art Renderer (Animated Sprites)", "files": ["PixelArtRenderer.java (NEW)", "GameBoard.java"]}
+    ],
+    "copilot": [
+      {"id": "C5", "desc": "Arrow key movement", "files": ["Hero.java", "GameGUI.java"]},
+      {"id": "C6", "desc": "E key = self heal", "files": ["GameGUI.java"]},
+      {"id": "C7", "desc": "R key = tower boost", "files": ["GameGUI.java"]},
+      {"id": "C8", "desc": "S key = sell tower", "files": ["GameGUI.java"]},
+      {"id": "C9", "desc": "Kill stats tracking", "files": ["Hero.java", "GameGUI.java"]},
+      {"id": "C10", "desc": "Enemy hover tooltips", "files": ["GameBoard.java"]}
+    ],
+    "combined": [
+      {"id": "KC1", "desc": "Master improvements list (105 items)", "files": ["JAVATOWER_IMPROVEMENTS_MASTER_LIST.md"]}
+    ]
+  },
+  "inProgressTasks": {
+    "copilot": [
+      {
+        "id": "CPICK1",
+        "desc": "[PICK FROM MASTER LIST] Sound Effects using AudioClip",
+        "ref": "JAVATOWER_IMPROVEMENTS_MASTER_LIST.md #3",
+        "priority": "HIGH",
+        "complexity": "Medium",
+        "files": ["SoundManager.java (NEW)", "GameGUI.java (hook)"]
+      },
+      {
+        "id": "CPICK2", 
+        "desc": "[PICK FROM MASTER LIST] Wave Countdown Timer HUD",
+        "ref": "JAVATOWER_IMPROVEMENTS_MASTER_LIST.md #4",
+        "priority": "HIGH",
+        "complexity": "Low",
+        "files": ["WaveInfoPanel.java (modify)"]
+      },
+      {
+        "id": "CPICK3",
+        "desc": "[PICK FROM MASTER LIST] Settings Menu",
+        "ref": "JAVATOWER_IMPROVEMENTS_MASTER_LIST.md #48",
+        "priority": "MEDIUM",
+        "complexity": "Medium",
+        "files": ["SettingsPanel.java (NEW)", "GameGUI.java (hook)"]
+      }
+    ],
+    "kimi": [
+      {
+        "id": "K9",
+        "desc": "End-of-wave save system with tower persistence",
+        "status": "70% complete",
+        "phase": "Phase 3: UI Panel + Auto-Save Hook",
+        "files": [
+          "SaveGameManager.java (DONE)",
+          "SaveSlotInfo.java (DONE)",
+          "GameState.java (DONE)",
+          "DatabaseManager.java (DONE)",
+          "Hero.java (DONE - added setters)",
+          "SaveGamePanel.java (IN PROGRESS)",
+          "GameGUI.java (pending - auto-save hook)",
+          "sources.txt (DONE)"
+        ],
+        "planDoc": "END_OF_WAVE_SAVE_PLAN.md",
+        "estimatedHours": 8,
+        "hoursSpent": 3,
+        "phasesCompleted": ["Phase 1: Database Schema", "Phase 2: Core Classes"],
+        "phasesInProgress": ["Phase 3: UI Panel", "Phase 4: Integration"]
+      }
+    ]
+  },
+  "suggestedNextTasks": {
+    "fromMasterList": "See JAVATOWER_IMPROVEMENTS_MASTER_LIST.md for all 105 ideas",
+    "copilotHighPriority": [
+      "Sound Effects (#3)",
+      "Wave Countdown Timer (#4)",
+      "Tower Range Visualization (#5)",
+      "Settings Menu (#48)",
+      "Combat Log Panel (#44)"
+    ],
+    "kimiHighPriority": [
+      "Finish K9 save system",
+      "Tower Synergies (#9)",
+      "Elite Enemies (#11)",
+      "Wave Modifiers (#13)"
+    ],
+    "collaboration": [
+      "New Tower Types (#25-30) - I do logic, you do visuals",
+      "New Enemy Types (#31-36) - I do AI, you do sprites",
+      "UI Polish (#41-58) - You lead, I support"
+    ]
+  },
+  "statistics": {
+    "totalImprovements": 105,
+    "completed": 18,
+    "inProgress": 4,
+    "remaining": 83
+  },
+  "collaborationNotes": {
+    "masterList": "JAVATOWER_IMPROVEMENTS_MASTER_LIST.md has all 105 improvements organized by tier",
+    "howToCollaborate": "Pick tasks from master list → Add to inProgressTasks → Implement → Mark complete",
+    "copilotActionRequired": "Read master list and claim 3-5 tasks in inProgressTasks.copilot",
+    "sharedFileRule": "APPEND ONLY - never modify existing code, only add new methods/cases",
+    "communication": "Use this file and handoff docs to coordinate"
+  }
+}

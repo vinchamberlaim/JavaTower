@@ -24,7 +24,9 @@ public class VisualEffect {
         TOWER_ARROW,    // Arrow from tower
         TOWER_MAGIC,    // Magic bolt from tower
         TOWER_SIEGE,    // Siege boulder from tower
-        GOLD_PICKUP     // Gold text floating up
+        GOLD_PICKUP,    // Gold text floating up
+        LEVEL_UP,       // Expanding golden ring + text
+        DEATH_DISSOLVE  // Enemy death shrink + particles
     }
 
     private EffectType type;
@@ -158,6 +160,26 @@ public class VisualEffect {
         return e;
     }
 
+    public static VisualEffect createLevelUp(double x, double y, int newLevel) {
+        VisualEffect e = new VisualEffect(EffectType.LEVEL_UP);
+        e.x = x; e.y = y;
+        e.lifetime = 1.2;
+        e.text = "LEVEL UP! Lv" + newLevel;
+        e.color = Color.web("#ffd700");
+        e.secondaryColor = Color.web("#fff8dc");
+        return e;
+    }
+
+    public static VisualEffect createDeathDissolve(double x, double y, double radius, Color enemyColor) {
+        VisualEffect e = new VisualEffect(EffectType.DEATH_DISSOLVE);
+        e.x = x; e.y = y;
+        e.lifetime = 0.4;
+        e.speed = radius; // store enemy radius in speed field
+        e.color = enemyColor;
+        e.secondaryColor = Color.web("#1a1a2e");
+        return e;
+    }
+
     public static VisualEffect createTowerArrow(double sx, double sy, double tx, double ty) {
         VisualEffect e = new VisualEffect(EffectType.TOWER_ARROW);
         e.startX = sx; e.startY = sy; e.x = sx; e.y = sy;
@@ -222,6 +244,7 @@ public class VisualEffect {
                 break;
 
             case MELEE_SLASH: case IMPACT_BURST: case FIRE_SPLASH:
+            case LEVEL_UP: case DEATH_DISSOLVE:
                 // purely time-based
                 break;
         }
@@ -234,18 +257,31 @@ public class VisualEffect {
         double t = age / lifetime; // 0..1
         double alpha = Math.max(0, 1.0 - t);
 
+        // Render trail for projectiles
         switch (type) {
             case ARROW: case TOWER_ARROW:
+                renderTrail(gc, Color.web("#f5e6ab", 0.4), 3);
                 renderArrow(gc, alpha);
                 break;
             case FIREBALL:
+                renderTrail(gc, Color.web("#ff6b35", 0.3), 5);
                 renderFireball(gc, alpha);
                 break;
             case NECRO_BOLT:
+                renderTrail(gc, Color.web("#8b5cf6", 0.3), 4);
                 renderNecroBolt(gc, alpha);
                 break;
             case HOLY_SMITE:
+                renderTrail(gc, Color.web("#ffd700", 0.3), 4);
                 renderHolySmite(gc, alpha);
+                break;
+            case TOWER_MAGIC:
+                renderTrail(gc, Color.web("#a855f7", 0.3), 4);
+                renderMagicBolt(gc, alpha);
+                break;
+            case TOWER_SIEGE:
+                renderTrail(gc, Color.web("#8b7355", 0.3), 6);
+                renderSiegeBoulder(gc, alpha);
                 break;
             case MELEE_SLASH:
                 renderMeleeSlash(gc, t);
@@ -262,11 +298,11 @@ public class VisualEffect {
             case FIRE_SPLASH:
                 renderFireSplash(gc, t);
                 break;
-            case TOWER_MAGIC:
-                renderMagicBolt(gc, alpha);
+            case LEVEL_UP:
+                renderLevelUp(gc, t);
                 break;
-            case TOWER_SIEGE:
-                renderSiegeBoulder(gc, alpha);
+            case DEATH_DISSOLVE:
+                renderDeathDissolve(gc, t);
                 break;
         }
     }
@@ -491,10 +527,99 @@ public class VisualEffect {
         gc.strokeRect(-5, -5, 10, 10);
         gc.restore();
     }
+    
+    /**
+     * Renders a fading trail behind the projectile.
+     */
+    private void renderTrail(GraphicsContext gc, Color trailColor, int segments) {
+        if (arrived) return; // Don't render trail after arrival
+        
+        for (int i = 1; i <= segments; i++) {
+            double trailT = (double) i / segments;
+            double trailAlpha = trailColor.getOpacity() * (1.0 - trailT) * 0.5;
+            double trailX = x - Math.cos(angle) * (i * 8);
+            double trailY = y - Math.sin(angle) * (i * 8);
+            double trailSize = 3 - (i * 0.3);
+            
+            gc.setFill(Color.color(trailColor.getRed(), trailColor.getGreen(), 
+                                  trailColor.getBlue(), trailAlpha));
+            gc.fillOval(trailX - trailSize/2, trailY - trailSize/2, trailSize, trailSize);
+        }
+    }
 
     // Getters
     public boolean isExpired() { return age >= lifetime; }
     public double getX() { return x; }
     public double getY() { return y; }
     public EffectType getType() { return type; }
+
+    private void renderLevelUp(GraphicsContext gc, double t) {
+        double alpha = Math.max(0, 1.0 - t);
+        // Expanding golden ring
+        double ringRadius = 15 + t * 60;
+        gc.setStroke(Color.color(color.getRed(), color.getGreen(), color.getBlue(), alpha * 0.8));
+        gc.setLineWidth(3 - t * 2);
+        gc.strokeOval(x - ringRadius, y - ringRadius, ringRadius * 2, ringRadius * 2);
+
+        // Second inner ring
+        double innerRadius = 10 + t * 40;
+        gc.setStroke(Color.color(secondaryColor.getRed(), secondaryColor.getGreen(), secondaryColor.getBlue(), alpha * 0.5));
+        gc.setLineWidth(2);
+        gc.strokeOval(x - innerRadius, y - innerRadius, innerRadius * 2, innerRadius * 2);
+
+        // Brief screen flash at start
+        if (t < 0.15) {
+            double flashAlpha = (1.0 - t / 0.15) * 0.2;
+            gc.setFill(Color.color(1, 0.95, 0.7, flashAlpha));
+            gc.fillRect(x - 200, y - 200, 400, 400);
+        }
+
+        // Floating text
+        double textY = y - 25 - t * 30;
+        gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 16));
+        gc.setFill(Color.color(0, 0, 0, alpha * 0.5));
+        gc.fillText(text, x - 48 + 1, textY + 1);
+        gc.setFill(Color.color(color.getRed(), color.getGreen(), color.getBlue(), alpha));
+        gc.fillText(text, x - 48, textY);
+
+        // Sparkle particles around ring
+        for (int i = 0; i < 8; i++) {
+            double sparkAngle = (Math.PI * 2 / 8) * i + t * 4;
+            double sparkDist = ringRadius * 0.9;
+            double sx = x + Math.cos(sparkAngle) * sparkDist;
+            double sy = y + Math.sin(sparkAngle) * sparkDist;
+            double sparkR = 2 * alpha;
+            gc.setFill(Color.color(1, 1, 0.8, alpha * 0.7));
+            gc.fillOval(sx - sparkR, sy - sparkR, sparkR * 2, sparkR * 2);
+        }
+    }
+
+    private void renderDeathDissolve(GraphicsContext gc, double t) {
+        double alpha = Math.max(0, 1.0 - t * 2); // fade out faster
+        double radius = speed * (1.0 - t); // shrink using stored radius
+
+        // Shrinking body
+        if (alpha > 0) {
+            gc.setFill(Color.color(color.getRed(), color.getGreen(), color.getBlue(), alpha * 0.6));
+            gc.fillOval(x - radius, y - radius, radius * 2, radius * 2);
+        }
+
+        // Scatter particles outward
+        for (int i = 0; i < 6; i++) {
+            double pAngle = (Math.PI * 2 / 6) * i + t * 3;
+            double pDist = speed * 0.5 + t * speed * 1.5;
+            double px = x + Math.cos(pAngle) * pDist;
+            double py = y + Math.sin(pAngle) * pDist;
+            double pAlpha = Math.max(0, 1.0 - t * 1.5);
+            double pR = 2 + (1.0 - t) * 2;
+            gc.setFill(Color.color(color.getRed(), color.getGreen(), color.getBlue(), pAlpha * 0.5));
+            gc.fillOval(px - pR, py - pR, pR * 2, pR * 2);
+        }
+
+        // Dark smoke
+        double smokeAlpha = Math.max(0, t * 0.6 - t * t * 0.6);
+        double smokeR = speed * 0.8 + t * speed * 0.5;
+        gc.setFill(Color.color(0.1, 0.1, 0.12, smokeAlpha));
+        gc.fillOval(x - smokeR, y - smokeR, smokeR * 2, smokeR * 2);
+    }
 }

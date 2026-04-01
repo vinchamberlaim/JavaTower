@@ -39,12 +39,35 @@ public class Hero extends Entity {
     private SkillTree combatTree, magicTree, utilityTree;
     private SkillProgression skillProgression;
 
+    // Arrow-key continuous movement
+    private boolean moveUp, moveDown, moveLeft, moveRight;
+    
+    // Ultimate ability state
+    private boolean ultimateActive = false;
+    
+    // Dodge/Roll mechanics
+    private boolean isRolling = false;
+    private double rollTimer = 0;
+    private double rollDuration = 0.35; // 350ms roll
+    private double rollCooldown = 1.5;  // 1.5s cooldown
+    private double rollCooldownTimer = 0;
+    private double rollSpeed = 3.0;     // 3x speed during roll
+    private double rollDirectionX = 0;
+    private double rollDirectionY = 0;
+
+    // Kill stats
+    private int totalKills = 0;
+    private int totalDamageDealt = 0;
+    private int totalGoldEarned = 0;
+    private int totalXPEarned = 0;
+
     // Last attack result (for visual effect spawning)
     private int lastDamageDealt;
     private boolean lastAttackCrit;
     private WeaponClass lastAttackWeaponClass = WeaponClass.MELEE;
     private Enemy lastAttackTarget;
     private boolean attackedThisFrame;
+    private boolean leveledUpThisFrame;
 
     public Hero(String name) {
         setName(name);
@@ -111,6 +134,28 @@ public class Hero extends Entity {
      */
     public void update(double dt, List<Enemy> enemies) {
         if (!isAlive()) return;
+        
+        // Handle roll cooldown
+        if (rollCooldownTimer > 0) {
+            rollCooldownTimer -= dt;
+        }
+        
+        // Handle active roll
+        if (isRolling) {
+            rollTimer -= dt;
+            if (rollTimer <= 0) {
+                isRolling = false;
+                rollCooldownTimer = rollCooldown;
+            } else {
+                // Continue rolling in direction
+                double step = moveSpeed * rollSpeed * dt;
+                double newX = Math.max(getRadius(), Math.min(Constants.SCREEN_WIDTH - getRadius(), getX() + rollDirectionX * step));
+                double newY = Math.max(getRadius(), Math.min(Constants.SCREEN_HEIGHT - getRadius(), getY() + rollDirectionY * step));
+                setPosition(newX, newY);
+            }
+            return; // Skip normal movement/attacks while rolling
+        }
+        
         attackTimer += dt;
 
         // Smooth movement toward click target
@@ -131,17 +176,39 @@ public class Hero extends Entity {
             }
         }
 
-        // Passive HP regen from Holy 4pc set bonus
+        // Arrow-key continuous movement (overrides click-to-move while held)
+        if (moveUp || moveDown || moveLeft || moveRight) {
+            moving = false; // cancel click-to-move
+            double adx = 0, ady = 0;
+            if (moveUp) ady -= 1;
+            if (moveDown) ady += 1;
+            if (moveLeft) adx -= 1;
+            if (moveRight) adx += 1;
+            double alen = Math.sqrt(adx * adx + ady * ady);
+            if (alen > 0) {
+                adx /= alen;
+                ady /= alen;
+                double step = (moveSpeed + getEquipmentStat("moveSpeed")) * dt;
+                double newX = Math.max(getRadius(), Math.min(Constants.SCREEN_WIDTH - getRadius(), getX() + adx * step));
+                double newY = Math.max(getRadius(), Math.min(Constants.SCREEN_HEIGHT - getRadius(), getY() + ady * step));
+                setPosition(newX, newY);
+            }
+        }
+
+        // Passive regen (1 tick per second)
         regenTimer += dt;
         if (regenTimer >= 1.0) {
             regenTimer -= 1.0;
+            // Holy 4pc HP regen
             int regen = SetBonusManager.getHolyPassiveRegen(getEquippedItems());
             if (regen > 0 && getCurrentHealth() < getEffectiveMaxHealth()) {
                 setCurrentHealth(Math.min(getEffectiveMaxHealth(), getCurrentHealth() + regen));
             }
-            // Death 4pc mana regen
-            int manaRegen = SetBonusManager.getDeathManaRegen(getEquippedItems());
-            if (manaRegen > 0 && mana < getEffectiveMaxMana()) {
+            // Base mana regen: 1/sec (Magic tree m3 skill adds +1 extra)
+            int baseManaRegen = 1;
+            // Death 4pc mana regen bonus
+            int manaRegen = baseManaRegen + SetBonusManager.getDeathManaRegen(getEquippedItems());
+            if (mana < getEffectiveMaxMana()) {
                 mana = Math.min(getEffectiveMaxMana(), mana + manaRegen);
             }
         }
@@ -235,7 +302,8 @@ public class Hero extends Entity {
     public WeaponClass getLastAttackWeaponClass() { return lastAttackWeaponClass; }
     public Enemy getLastAttackTarget() { return lastAttackTarget; }
     public boolean didAttackThisFrame() { return attackedThisFrame; }
-    public void clearFrameFlags() { attackedThisFrame = false; }
+    public void clearFrameFlags() { attackedThisFrame = false; leveledUpThisFrame = false; }
+    public boolean didLevelUpThisFrame() { return leveledUpThisFrame; }
 
     /**
      * Gain experience and check for level up.
@@ -262,6 +330,7 @@ public class Hero extends Entity {
         skillPoints++;
         level++;
         experienceToNextLevel = (int)(experienceToNextLevel * 1.2);
+        leveledUpThisFrame = true;
 
         // Expand inventory every 3 levels
         if (level % 3 == 0) {
@@ -398,9 +467,13 @@ public class Hero extends Entity {
 
     /**
      * Applies damage to the hero, reduced by defence + Defence skill bonus. Trains Defence skill.
+     * During roll: INVINCIBLE (no damage taken).
      */
     @Override
     public int takeDamage(int damage) {
+        // Invincible during roll
+        if (isRolling) return 0;
+        
         // Effective defence = base + items + skill bonus
         int totalDef = getEffectiveDefence() + skillProgression.getDefenceBonus();
         // Knight 2pc: +25% defence
@@ -474,19 +547,25 @@ public class Hero extends Entity {
         return total;
     }
 
-    /** Base attack + all equipped item attack bonuses. */
+    /** Base attack + all equipped item attack bonuses (+50% during ultimate). */
     public int getEffectiveAttack() {
-        return getAttack() + getEquipmentStat("attack");
+        int attack = getAttack() + getEquipmentStat("attack");
+        if (ultimateActive) attack = (int)(attack * 1.5);
+        return attack;
     }
 
-    /** Base defence + all equipped item defence bonuses. */
+    /** Base defence + all equipped item defence bonuses (+50% during ultimate). */
     public int getEffectiveDefence() {
-        return getDefence() + getEquipmentStat("defence");
+        int def = getDefence() + getEquipmentStat("defence");
+        if (ultimateActive) def = (int)(def * 1.5);
+        return def;
     }
 
-    /** Base crit chance + all equipped item crit bonuses. */
+    /** Base crit chance + all equipped item crit bonuses (+25% during ultimate). */
     public int getEffectiveCritChance() {
-        return critChance + getEquipmentStat("critChance");
+        int crit = critChance + getEquipmentStat("critChance");
+        if (ultimateActive) crit += 25;
+        return crit;
     }
 
     /** Base max mana + equipped mana bonuses. */
@@ -518,6 +597,10 @@ public class Hero extends Entity {
     public int getSkillPoints() { return skillPoints; }
     public void setSkillPoints(int skillPoints) { this.skillPoints = skillPoints; }
     public void setMaxMana(int maxMana) { this.maxMana = maxMana; }
+    public void setLevel(int level) { this.level = level; }
+    public void setGold(int gold) { this.gold = gold; }
+    public void setMana(int mana) { this.mana = mana; }
+    public void setExperience(int experience) { this.experience = experience; }
     public Inventory getInventory() { return inventory; }
     public SkillProgression getSkillProgression() { return skillProgression; }
 
@@ -568,5 +651,84 @@ public class Hero extends Entity {
     public SkillTree getCombatTree() { return combatTree; }
     public SkillTree getMagicTree() { return magicTree; }
     public SkillTree getUtilityTree() { return utilityTree; }
+
+    // Arrow-key movement setters
+    public void setMoveUp(boolean v) { moveUp = v; }
+    public void setMoveDown(boolean v) { moveDown = v; }
+    public void setMoveLeft(boolean v) { moveLeft = v; }
+    public void setMoveRight(boolean v) { moveRight = v; }
+
+    // Kill stats
+    public void recordKill(int damage, int gold, int xp) {
+        totalKills++;
+        totalDamageDealt += damage;
+        totalGoldEarned += gold;
+        totalXPEarned += xp;
+    }
+    public int getTotalKills() { return totalKills; }
+    public int getTotalDamageDealt() { return totalDamageDealt; }
+    public int getTotalGoldEarned() { return totalGoldEarned; }
+    public int getTotalXPEarned() { return totalXPEarned; }
+    
+    // ========== Dodge/Roll Methods ==========
+    
+    /**
+     * Activates a dodge/roll in the specified direction.
+     * @param dirX X direction (-1 to 1)
+     * @param dirY Y direction (-1 to 1)
+     * @return true if roll was activated, false if on cooldown
+     */
+    public boolean roll(double dirX, double dirY) {
+        if (isRolling || rollCooldownTimer > 0) return false;
+        
+        // Normalize direction
+        double len = Math.sqrt(dirX * dirX + dirY * dirY);
+        if (len < 0.001) return false;
+        
+        rollDirectionX = dirX / len;
+        rollDirectionY = dirY / len;
+        isRolling = true;
+        rollTimer = rollDuration;
+        return true;
+    }
+    
+    /**
+     * Roll in current movement direction (for WASD controls).
+     */
+    public boolean rollInMovementDirection() {
+        double dx = 0, dy = 0;
+        if (moveUp) dy -= 1;
+        if (moveDown) dy += 1;
+        if (moveLeft) dx -= 1;
+        if (moveRight) dx += 1;
+        
+        // If no movement keys, roll toward last click target
+        if (dx == 0 && dy == 0 && moving) {
+            dx = targetX - getX();
+            dy = targetY - getY();
+        }
+        
+        return roll(dx, dy);
+    }
+    
+    /**
+     * Instantly roll toward cursor position.
+     */
+    public boolean rollTo(double targetX, double targetY) {
+        return roll(targetX - getX(), targetY - getY());
+    }
+    
+    public boolean isRolling() { return isRolling; }
+    public double getRollCooldownPercent() { 
+        if (rollCooldownTimer <= 0) return 1.0;
+        return 1.0 - (rollCooldownTimer / rollCooldown);
+    }
+    public double getRollDurationRemaining() { return rollTimer; }
+    public boolean canRoll() { return !isRolling && rollCooldownTimer <= 0; }
+    
+    // Ultimate ability methods
+    public void setUltimateActive(boolean active) { this.ultimateActive = active; }
+    public boolean isUltimateActive() { return ultimateActive; }
+    
     // Equipment getters omitted for brevity
 }

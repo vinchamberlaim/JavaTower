@@ -20,24 +20,45 @@
 
 JavaTower is a real-time tower defence RPG built with **Java 21** and **JavaFX**. The player controls a hero navigating through 30 waves of undead enemies, placing defensive towers, managing a Tetris-style inventory, purchasing equipment from a shop, and progressing through skill trees. Game state is persisted via **SQLite (JDBC)**.
 
-## How to Build & Run
+## Quick Start (First Time Setup)
 
-### Prerequisites
-- **Java 21** (OpenJDK)
-- **JavaFX SDK 21.0.2** — place in `javafx-sdk/` folder
-- **SQLite JDBC 3.45.1.0** — place in `lib/sqlite-jdbc-3.45.1.0.jar`
+### Option 1: Easy Launch (Recommended)
+Just double-click **`RunJavaTower.bat`** — it will automatically:
+1. ✓ Check for Java 21+
+2. ✓ Download JavaFX SDK (if missing)
+3. ✓ Download SQLite JDBC (if missing)
+4. ✓ Compile all source files
+5. ✓ Create database on first run
+6. ✓ Launch the game!
 
-### Compile
-```bash
-javac --module-path "javafx-sdk/lib" --add-modules javafx.controls,javafx.graphics -cp "lib/sqlite-jdbc-3.45.1.0.jar" -d out2 @sources.txt
+### Option 2: PowerShell
+```powershell
+.\RunJavaTower.ps1
 ```
 
-### Run
-```bash
+### Option 3: Manual Setup
+If you prefer manual setup:
+
+```powershell
+# 1. Run setup script to download dependencies
+.\Setup.ps1
+
+# 2. Compile
+javac --module-path "javafx-sdk/lib" --add-modules javafx.controls,javafx.graphics -cp "lib/sqlite-jdbc-3.45.1.0.jar" -d out2 @sources.txt
+
+# 3. Run (database auto-creates on first run)
 java --module-path "javafx-sdk/lib" --add-modules javafx.controls,javafx.graphics -cp "out2;lib/sqlite-jdbc-3.45.1.0.jar" Main
 ```
 
-Or use the provided `RunJavaTower.bat` / `RunJavaTower.ps1` scripts.
+## Prerequisites
+
+| Requirement | Version | Download |
+|-------------|---------|----------|
+| Java | 21+ | https://adoptium.net/ |
+| JavaFX SDK | 21.0.2 | Auto-downloaded |
+| SQLite JDBC | 3.45.1.0 | Auto-downloaded |
+
+**Note:** The game database (`javatower.db`) is created automatically on first run. No manual database setup required!
 
 ## Project Structure
 

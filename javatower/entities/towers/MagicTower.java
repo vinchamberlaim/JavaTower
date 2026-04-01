@@ -19,6 +19,8 @@ public class MagicTower extends Tower {
         Enemy target = selectTarget(enemies);
         if (target != null) {
             target.takeDamage(getDamage());
+            recordDamage(getDamage());
+            if (!target.isAlive()) recordKill();
         }
     }
 
@@ -29,17 +31,7 @@ public class MagicTower extends Tower {
         for (Enemy e : enemies) {
             if (e.isAlive() && e.canPhase() && distanceTo(e) <= rangePx) return e;
         }
-        Enemy closest = null;
-        double minDist = Double.MAX_VALUE;
-        for (Enemy e : enemies) {
-            if (!e.isAlive()) continue;
-            double dist = distanceTo(e);
-            if (dist <= rangePx && dist < minDist) {
-                minDist = dist;
-                closest = e;
-            }
-        }
-        return closest;
+        return selectByMode(enemies);
     }
 
     @Override

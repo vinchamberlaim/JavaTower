@@ -18,24 +18,16 @@ public class ArrowTower extends Tower {
     public void attack(List<Enemy> enemies) {
         Enemy target = selectTarget(enemies);
         if (target != null) {
+            int prevHp = target.getCurrentHealth();
             target.takeDamage(getDamage());
+            recordDamage(getDamage());
+            if (!target.isAlive()) recordKill();
         }
     }
 
     @Override
     public Enemy selectTarget(List<Enemy> enemies) {
-        Enemy closest = null;
-        double minDist = Double.MAX_VALUE;
-        double rangePx = getRangePixels();
-        for (Enemy e : enemies) {
-            if (!e.isAlive()) continue;
-            double dist = distanceTo(e);
-            if (dist <= rangePx && dist < minDist) {
-                minDist = dist;
-                closest = e;
-            }
-        }
-        return closest;
+        return selectByMode(enemies);
     }
 
     @Override

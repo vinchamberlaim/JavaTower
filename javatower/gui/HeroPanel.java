@@ -31,7 +31,7 @@ public class HeroPanel extends VBox {
         setStyle("-fx-background-color: #1a1a2e; -fx-border-color: #533483; -fx-border-width: 1;");
 
         Label header = new Label("HERO");
-        header.setFont(Font.font("Monospaced", FontWeight.BOLD, 16));
+        header.setFont(Font.font("Monospaced", FontWeight.BOLD, 22));
         header.setStyle("-fx-text-fill: #e94560;");
 
         nameLabel = createStatLabel("");
@@ -44,15 +44,15 @@ public class HeroPanel extends VBox {
         manaLabel = createStatLabel("");
 
         hpBar = new ProgressBar(1.0);
-        hpBar.setPrefWidth(200);
+        hpBar.setPrefWidth(260);
         hpBar.setStyle("-fx-accent: limegreen;");
 
         xpBar = new ProgressBar(0);
-        xpBar.setPrefWidth(200);
+        xpBar.setPrefWidth(260);
         xpBar.setStyle("-fx-accent: #a855f7;");
 
         manaBar = new ProgressBar(1.0);
-        manaBar.setPrefWidth(200);
+        manaBar.setPrefWidth(260);
         manaBar.setStyle("-fx-accent: #22d3ee;");
 
         Label hpLabel = createStatLabel("HP:");
@@ -61,13 +61,13 @@ public class HeroPanel extends VBox {
 
         // Skill progression section
         Label skillHeader = new Label("SKILLS");
-        skillHeader.setFont(Font.font("Monospaced", FontWeight.BOLD, 11));
+        skillHeader.setFont(Font.font("Monospaced", FontWeight.BOLD, 16));
         skillHeader.setStyle("-fx-text-fill: #a855f7;");
         skillSection = new VBox(2);
 
         // Set bonus section
         Label setHeader = new Label("SET BONUSES");
-        setHeader.setFont(Font.font("Monospaced", FontWeight.BOLD, 11));
+        setHeader.setFont(Font.font("Monospaced", FontWeight.BOLD, 16));
         setHeader.setStyle("-fx-text-fill: #f97316;");
         setSection = new VBox(2);
 
@@ -120,7 +120,7 @@ public class HeroPanel extends VBox {
         for (WeaponClass wc : new WeaponClass[]{ WeaponClass.MELEE, WeaponClass.RANGED, WeaponClass.NECROMANCY, WeaponClass.HOLY, WeaponClass.DEFENCE }) {
             int lvl = sp.getLevel(wc);
             Label skillLabel = new Label(wc.displayName + ": " + lvl);
-            skillLabel.setFont(Font.font("Monospaced", 10));
+            skillLabel.setFont(Font.font("Monospaced", 14));
             skillLabel.setStyle("-fx-text-fill: " + (lvl > 0 ? "#4ecca3" : "#666") + ";");
             skillSection.getChildren().add(skillLabel);
         }
@@ -130,13 +130,13 @@ public class HeroPanel extends VBox {
         List<String> bonuses = SetBonusManager.getActiveBonusDescriptions(hero.getEquippedItems());
         if (bonuses.isEmpty()) {
             Label none = new Label("None");
-            none.setFont(Font.font("Monospaced", 10));
+            none.setFont(Font.font("Monospaced", 14));
             none.setStyle("-fx-text-fill: #666;");
             setSection.getChildren().add(none);
         } else {
             for (String b : bonuses) {
                 Label bl = new Label(b);
-                bl.setFont(Font.font("Monospaced", 10));
+                bl.setFont(Font.font("Monospaced", 14));
                 bl.setStyle("-fx-text-fill: #f97316;");
                 setSection.getChildren().add(bl);
             }
@@ -145,7 +145,7 @@ public class HeroPanel extends VBox {
 
     private Label createStatLabel(String text) {
         Label label = new Label(text);
-        label.setFont(Font.font("Monospaced", 12));
+        label.setFont(Font.font("Monospaced", 16));
         label.setStyle("-fx-text-fill: #eee;");
         return label;
     }

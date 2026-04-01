@@ -12,6 +12,10 @@ public abstract class Tower extends Entity {
         ARROW, MAGIC, SIEGE, SUPPORT
     }
 
+    public enum TargetMode {
+        NEAREST, STRONGEST, WEAKEST, FIRST
+    }
+
     private TowerType type;
     private int range;          // abstract range units
     private int damage;
@@ -21,6 +25,13 @@ public abstract class Tower extends Entity {
     private int upgradeCost;
     private Enemy lastTarget;
     private boolean firedThisFrame;
+
+    // Kill tracking (#37)
+    private int killCount = 0;
+    private int totalDamageDealt = 0;
+
+    // Targeting mode (#31)
+    private TargetMode targetMode = TargetMode.NEAREST;
 
     public Tower(TowerType type, int range, int damage, int attackSpeed, int upgradeCost) {
         this.type = type;
@@ -43,7 +54,7 @@ public abstract class Tower extends Entity {
         if (!isAlive()) return;
         firedThisFrame = false;
         attackTimer += dt;
-        if (attackTimer >= attackCooldown) {
+        if (attackTimer >= getEffectiveAttackCooldown()) {
             Enemy target = selectTarget(enemies);
             if (target != null) {
                 lastTarget = target;
@@ -79,4 +90,123 @@ public abstract class Tower extends Entity {
     public void setAttackCooldown(double cd) { this.attackCooldown = cd; }
     public Enemy getLastTarget() { return lastTarget; }
     public boolean didFireThisFrame() { return firedThisFrame; }
+
+    // Kill tracking (#37)
+    public int getKillCount() { return killCount; }
+    public int getTotalDamageDealt() { return totalDamageDealt; }
+    public void recordDamage(int damage) { totalDamageDealt += damage; }
+    public void recordKill() { killCount++; }
+
+    // Targeting mode (#31)
+    public TargetMode getTargetMode() { return targetMode; }
+    public void cycleTargetMode() {
+        TargetMode[] modes = TargetMode.values();
+        targetMode = modes[(targetMode.ordinal() + 1) % modes.length];
+    }
+    
+    // ========== SYNERGY SYSTEM ==========
+    
+    private javatower.systems.TowerSynergyManager.SynergyType activeSynergy = 
+        javatower.systems.TowerSynergyManager.SynergyType.NONE;
+    private double synergyDamageMultiplier = 1.0;
+    private double synergySpeedMultiplier = 1.0;
+    private double synergyRangeMultiplier = 1.0;
+    private boolean pierceEnabled = false;
+    private boolean gravityWellEnabled = false;
+    private boolean volleyEnabled = false;
+    
+    public void clearSynergyBonus() {
+        activeSynergy = javatower.systems.TowerSynergyManager.SynergyType.NONE;
+        synergyDamageMultiplier = 1.0;
+        synergySpeedMultiplier = 1.0;
+        synergyRangeMultiplier = 1.0;
+        pierceEnabled = false;
+        gravityWellEnabled = false;
+        volleyEnabled = false;
+    }
+    
+    public void setActiveSynergy(javatower.systems.TowerSynergyManager.SynergyType synergy) {
+        this.activeSynergy = synergy;
+    }
+    
+    public javatower.systems.TowerSynergyManager.SynergyType getActiveSynergy() {
+        return activeSynergy;
+    }
+    
+    public void setSynergyDamageMultiplier(double mult) {
+        this.synergyDamageMultiplier = mult;
+    }
+    
+    public void setSynergySpeedMultiplier(double mult) {
+        this.synergySpeedMultiplier = mult;
+    }
+    
+    public void setSynergyRangeMultiplier(double mult) {
+        this.synergyRangeMultiplier = mult;
+    }
+    
+    public void setPierceEnabled(boolean enabled) {
+        this.pierceEnabled = enabled;
+    }
+    
+    public void setGravityWellEnabled(boolean enabled) {
+        this.gravityWellEnabled = enabled;
+    }
+    
+    public void setVolleyEnabled(boolean enabled) {
+        this.volleyEnabled = enabled;
+    }
+    
+    // Effective stats with synergy
+    public int getEffectiveDamage() {
+        return (int)(damage * synergyDamageMultiplier);
+    }
+    
+    public double getEffectiveAttackCooldown() {
+        return attackCooldown / synergySpeedMultiplier;
+    }
+    
+    public double getEffectiveRangePixels() {
+        return getRangePixels() * synergyRangeMultiplier;
+    }
+    
+    public boolean isPierceEnabled() { return pierceEnabled; }
+    public boolean isGravityWellEnabled() { return gravityWellEnabled; }
+    public boolean isVolleyEnabled() { return volleyEnabled; }
+    
+    public boolean hasSynergy() {
+        return activeSynergy != javatower.systems.TowerSynergyManager.SynergyType.NONE;
+    }
+
+    /**
+     * Selects a target from enemies in range using the current targeting mode.
+     * Subclasses can call this instead of doing their own selection.
+     */
+    protected Enemy selectByMode(List<Enemy> enemies) {
+        double rangePx = getEffectiveRangePixels();
+        Enemy pick = null;
+        double bestVal = 0;
+        boolean first = true;
+        for (Enemy e : enemies) {
+            if (!e.isAlive()) continue;
+            double dist = distanceTo(e);
+            if (dist > rangePx) continue;
+            if (first) { pick = e; bestVal = (targetMode == TargetMode.NEAREST || targetMode == TargetMode.WEAKEST) ? dist : e.getCurrentHealth(); first = false; }
+            switch (targetMode) {
+                case NEAREST:
+                    if (dist < bestVal) { bestVal = dist; pick = e; }
+                    break;
+                case STRONGEST:
+                    if (e.getCurrentHealth() > bestVal) { bestVal = e.getCurrentHealth(); pick = e; }
+                    break;
+                case WEAKEST:
+                    if (e.getCurrentHealth() < bestVal) { bestVal = e.getCurrentHealth(); pick = e; }
+                    break;
+                case FIRST:
+                    pick = e; // first alive in list
+                    return pick;
+            }
+        }
+        return pick;
+    }
 }

@@ -24,6 +24,7 @@ public class Constants {
     public static final double ENEMY_RADIUS_MEDIUM = 16;
     public static final double ENEMY_RADIUS_LARGE = 22;
     public static final double ENEMY_RADIUS_BOSS = 30;
+    public static final double ENEMY_RADIUS_MAX = 80; // Max radius from bone pile growth
 
     // Movement speeds (pixels per second)
     public static final double HERO_SPEED = 120;

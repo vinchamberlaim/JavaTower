@@ -94,12 +94,39 @@ public class ItemFactory {
     }
 
     /**
-     * Creates an item drop from a defeated enemy.
-     * 12% chance for a set item; otherwise a normal item.
+     * Creates an item drop from a defeated enemy, with tier-based drop chance.
+     * Normal enemies: 8% drop chance. Mini-bosses (tier 5-8): 30%. Bosses (tier 9-10): 100%.
+     * Boss drops are at least EPIC quality. Tier 10 drops LEGENDARY.
+     * Returns null if no drop.
      */
     public static Item createItemDrop(javatower.entities.Enemy enemy) {
+        int tier = enemy.getType().tier;
         int level = enemy.getWaveLevel();
-        Rarity rarity = rollRarity();
+
+        // Drop chance based on tier
+        double dropChance;
+        if (tier >= 9) dropChance = 1.0;       // bosses always drop
+        else if (tier >= 5) dropChance = 0.30;  // mini-bosses
+        else dropChance = 0.08;                  // normal enemies
+
+        if (rand.nextDouble() > dropChance) return null;
+
+        // Boss quality floor
+        Rarity rarity;
+        if (tier >= 10) {
+            rarity = Rarity.LEGENDARY;
+        } else if (tier >= 9) {
+            rarity = Rarity.EPIC;
+        } else {
+            rarity = rollRarity();
+        }
+
+        // Unique boss drops (#44): bosses drop signature named items
+        if (tier >= 9) {
+            Item unique = createBossUnique(enemy.getType(), level);
+            if (unique != null) return unique;
+        }
+
         if (rand.nextInt(100) < 12) {
             return createRandomSetItem(level, rarity);
         }
@@ -139,5 +166,63 @@ public class ItemFactory {
         if (roll < 88) return Rarity.RARE;          // 18%
         if (roll < 97) return Rarity.EPIC;          // 9%
         return Rarity.LEGENDARY;                     // 3%
+    }
+
+    /**
+     * Creates a unique named item for boss-tier enemies (#44).
+     * Each boss type drops a signature weapon/armor piece.
+     */
+    private static Item createBossUnique(javatower.entities.Enemy.EnemyType bossType, int level) {
+        switch (bossType) {
+            case BONE_COLOSSUS: {
+                // Drops a massive bone shield
+                Item item = new Item("Colossus Boneshield", "A shield carved from the Colossus's own spine. Radiates an aura of dread.",
+                    Item.Slot.OFFHAND, Rarity.EPIC, Item.WeaponClass.DEFENCE, 2, 2, level);
+                item.getStatBonuses().put("defence", (int)(20 * Rarity.EPIC.mult * level));
+                item.getStatBonuses().put("maxHealth", (int)(15 * Rarity.EPIC.mult * level));
+                item.getStatBonuses().put("attack", (int)(5 * Rarity.EPIC.mult * level));
+                item.setBuyPrice(0);
+                item.setSellPrice((int)(80 * level));
+                return item;
+            }
+            case NECROMANCER_KING: {
+                // Drops one of 3 legendary items randomly
+                int pick = rand.nextInt(3);
+                if (pick == 0) {
+                    Item item = new Item("Crown of the Necromancer King", "The cursed crown pulses with necrotic energy. Empowers all dark magic.",
+                        Item.Slot.HELMET, Rarity.LEGENDARY, Item.WeaponClass.NECROMANCY, Item.EquipmentSet.DEATH, 2, 1, level);
+                    item.getStatBonuses().put("attack", (int)(15 * Rarity.LEGENDARY.mult * level));
+                    item.getStatBonuses().put("mana", (int)(30 * Rarity.LEGENDARY.mult * level));
+                    item.getStatBonuses().put("defence", (int)(10 * Rarity.LEGENDARY.mult * level));
+                    item.getStatBonuses().put("maxHealth", (int)(20 * Rarity.LEGENDARY.mult * level));
+                    item.setBuyPrice(0);
+                    item.setSellPrice((int)(200 * level));
+                    return item;
+                } else if (pick == 1) {
+                    Item item = new Item("Soulreaper Scythe", "The Necromancer King's personal weapon. Drains life from the living.",
+                        Item.Slot.WEAPON, Rarity.LEGENDARY, Item.WeaponClass.NECROMANCY, Item.EquipmentSet.DEATH, 1, 4, level);
+                    item.getStatBonuses().put("attack", (int)(25 * Rarity.LEGENDARY.mult * level));
+                    item.getStatBonuses().put("mana", (int)(20 * Rarity.LEGENDARY.mult * level));
+                    item.getStatBonuses().put("speed", (int)(3 * Rarity.LEGENDARY.mult));
+                    item.getStatBonuses().put("heal", (int)(8 * Rarity.LEGENDARY.mult * level));
+                    item.setTwoHanded(true);
+                    item.setBuyPrice(0);
+                    item.setSellPrice((int)(250 * level));
+                    return item;
+                } else {
+                    Item item = new Item("Phylactery of Undying", "The King's phylactery. Grants immense resilience to its bearer.",
+                        Item.Slot.AMULET, Rarity.LEGENDARY, Item.WeaponClass.NECROMANCY, 1, 1, level);
+                    item.getStatBonuses().put("maxHealth", (int)(40 * Rarity.LEGENDARY.mult * level));
+                    item.getStatBonuses().put("defence", (int)(15 * Rarity.LEGENDARY.mult * level));
+                    item.getStatBonuses().put("mana", (int)(25 * Rarity.LEGENDARY.mult * level));
+                    item.getStatBonuses().put("heal", (int)(5 * Rarity.LEGENDARY.mult * level));
+                    item.setBuyPrice(0);
+                    item.setSellPrice((int)(300 * level));
+                    return item;
+                }
+            }
+            default:
+                return null; // Non-boss enemies or unrecognized, fall through to normal drops
+        }
     }
 }

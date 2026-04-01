@@ -32,26 +32,26 @@ public class InventoryPanel extends VBox {
         setStyle("-fx-background-color: #1a1a2e;");
 
         Label header = new Label("EQUIPMENT & INVENTORY");
-        header.setFont(Font.font("Monospaced", FontWeight.BOLD, 22));
+        header.setFont(Font.font("Monospaced", FontWeight.BOLD, 32));
         header.setStyle("-fx-text-fill: #e94560;");
 
         infoLabel = new Label();
-        infoLabel.setFont(Font.font("Monospaced", 12));
+        infoLabel.setFont(Font.font("Monospaced", 16));
         infoLabel.setStyle("-fx-text-fill: #eee;");
 
         equipSection = new VBox(4);
         bagSection = new VBox(4);
 
         Label equipHeader = new Label("-- EQUIPPED --");
-        equipHeader.setFont(Font.font("Monospaced", FontWeight.BOLD, 14));
+        equipHeader.setFont(Font.font("Monospaced", FontWeight.BOLD, 20));
         equipHeader.setStyle("-fx-text-fill: #22d3ee;");
 
         Label bagHeader = new Label("-- BACKPACK --");
-        bagHeader.setFont(Font.font("Monospaced", FontWeight.BOLD, 14));
+        bagHeader.setFont(Font.font("Monospaced", FontWeight.BOLD, 20));
         bagHeader.setStyle("-fx-text-fill: #4ecca3;");
 
         Button backBtn = new Button("Back to Game");
-        backBtn.setFont(Font.font("Monospaced", FontWeight.BOLD, 14));
+        backBtn.setFont(Font.font("Monospaced", FontWeight.BOLD, 20));
         backBtn.setStyle("-fx-background-color: #e94560; -fx-text-fill: white; -fx-cursor: hand;");
         backBtn.setOnAction(e -> gui.returnToGame());
 
@@ -98,7 +98,7 @@ public class InventoryPanel extends VBox {
         int emptyRings = 10 - hero.getEquippedRingCount();
         if (emptyRings > 0) {
             Label emptyLabel = new Label("  +" + emptyRings + " empty ring slot" + (emptyRings > 1 ? "s" : ""));
-            emptyLabel.setFont(Font.font("Monospaced", 10));
+            emptyLabel.setFont(Font.font("Monospaced", 14));
             emptyLabel.setStyle("-fx-text-fill: #666;");
             equipSection.getChildren().add(emptyLabel);
         }
@@ -122,22 +122,22 @@ public class InventoryPanel extends VBox {
         row.setAlignment(Pos.CENTER_LEFT);
 
         Label slotLabel = new Label(slotName + ":");
-        slotLabel.setFont(Font.font("Monospaced", FontWeight.BOLD, 11));
+        slotLabel.setFont(Font.font("Monospaced", FontWeight.BOLD, 16));
         slotLabel.setStyle("-fx-text-fill: #aaa;");
-        slotLabel.setPrefWidth(80);
+        slotLabel.setPrefWidth(100);
 
         if (item != null) {
             String setTag = item.getEquipmentSet() != Item.EquipmentSet.NONE
                     ? " {" + item.getEquipmentSet().className + "}" : "";
             Label nameLabel = new Label(item.getName() + " [" + item.getRarity().name() + "]" + setTag + suffix);
-            nameLabel.setFont(Font.font("Monospaced", 11));
+            nameLabel.setFont(Font.font("Monospaced", 15));
             nameLabel.setStyle("-fx-text-fill: " + item.getRarity().color + ";");
-            nameLabel.setPrefWidth(280);
+            nameLabel.setPrefWidth(360);
 
             Label statsLabel = new Label(item.getStatBonuses().toString());
-            statsLabel.setFont(Font.font("Monospaced", 9));
+            statsLabel.setFont(Font.font("Monospaced", 13));
             statsLabel.setStyle("-fx-text-fill: #888;");
-            statsLabel.setPrefWidth(180);
+            statsLabel.setPrefWidth(240);
 
             Button unequipBtn = new Button("Unequip");
             unequipBtn.setStyle("-fx-background-color: #f97316; -fx-text-fill: white; -fx-font-size: 9;");
@@ -152,7 +152,7 @@ public class InventoryPanel extends VBox {
             row.getChildren().addAll(slotLabel, nameLabel, statsLabel, unequipBtn);
         } else {
             Label emptyLabel = new Label("-- empty --" + suffix);
-            emptyLabel.setFont(Font.font("Monospaced", 10));
+            emptyLabel.setFont(Font.font("Monospaced", 14));
             emptyLabel.setStyle("-fx-text-fill: #555;");
             row.getChildren().addAll(slotLabel, emptyLabel);
         }
@@ -169,14 +169,14 @@ public class InventoryPanel extends VBox {
         String twoH = item.isTwoHanded() ? " [2H]" : "";
         Label nameLabel = new Label(item.getName() + " [" + item.getRarity().name() + "]"
                 + setTag + twoH + " (" + item.getSlot() + ")");
-        nameLabel.setFont(Font.font("Monospaced", 11));
+        nameLabel.setFont(Font.font("Monospaced", 15));
         nameLabel.setStyle("-fx-text-fill: " + item.getRarity().color + ";");
-        nameLabel.setPrefWidth(320);
+        nameLabel.setPrefWidth(400);
 
         Label statsLabel = new Label(item.getStatBonuses().toString());
-        statsLabel.setFont(Font.font("Monospaced", 9));
+        statsLabel.setFont(Font.font("Monospaced", 13));
         statsLabel.setStyle("-fx-text-fill: #888;");
-        statsLabel.setPrefWidth(160);
+        statsLabel.setPrefWidth(220);
 
         Button equipBtn = new Button("Equip");
         equipBtn.setStyle("-fx-background-color: #4ecca3; -fx-text-fill: white; -fx-font-size: 9;");
@@ -207,7 +207,7 @@ public class InventoryPanel extends VBox {
         });
 
         Label priceLabel = new Label("$" + item.getSellPrice());
-        priceLabel.setFont(Font.font("Monospaced", 9));
+        priceLabel.setFont(Font.font("Monospaced", 13));
         priceLabel.setStyle("-fx-text-fill: #eab308;");
 
         row.getChildren().addAll(nameLabel, statsLabel, equipBtn, dropBtn, priceLabel);

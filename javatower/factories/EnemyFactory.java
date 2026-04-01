@@ -4,39 +4,84 @@ import java.util.List;
 import java.util.ArrayList;
 import javatower.entities.Enemy;
 import javatower.entities.Enemy.EnemyType;
+import javatower.systems.WaveModifier;
 
 /**
  * Factory for creating enemies based on wave.
+ * Supports elite modifiers and wave modifiers.
  */
 public class EnemyFactory {
     public static Enemy createEnemy(EnemyType type, int waveLevel) {
+        return createEnemy(type, waveLevel, WaveModifier.NONE);
+    }
+    
+    public static Enemy createEnemy(EnemyType type, int waveLevel, WaveModifier modifier) {
+        Enemy enemy;
         switch (type) {
             case ZOMBIE:
-                return new javatower.entities.enemies.Zombie(waveLevel);
+                enemy = new javatower.entities.enemies.Zombie(waveLevel); break;
             case SKELETON:
-                return new javatower.entities.enemies.Skeleton(waveLevel);
+                enemy = new javatower.entities.enemies.Skeleton(waveLevel); break;
             case GHOUL:
-                return new javatower.entities.enemies.Ghoul(waveLevel);
+                enemy = new javatower.entities.enemies.Ghoul(waveLevel); break;
             case WIGHT:
-                return new javatower.entities.enemies.Wight(waveLevel);
+                enemy = new javatower.entities.enemies.Wight(waveLevel); break;
             case WRAITH:
-                return new javatower.entities.enemies.Wraith(waveLevel);
+                enemy = new javatower.entities.enemies.Wraith(waveLevel); break;
             case REVENANT:
-                return new javatower.entities.enemies.Revenant(waveLevel);
+                enemy = new javatower.entities.enemies.Revenant(waveLevel); break;
             case DEATH_KNIGHT:
-                return new javatower.entities.enemies.DeathKnight(waveLevel);
+                enemy = new javatower.entities.enemies.DeathKnight(waveLevel); break;
             case LICH:
-                return new javatower.entities.enemies.Lich(waveLevel);
+                enemy = new javatower.entities.enemies.Lich(waveLevel); break;
             case BONE_COLOSSUS:
-                return new javatower.entities.enemies.BoneColossus(waveLevel);
+                enemy = new javatower.entities.enemies.BoneColossus(waveLevel); break;
             case NECROMANCER_KING:
-                return new javatower.entities.enemies.NecromancerKing(waveLevel);
+                enemy = new javatower.entities.enemies.NecromancerKing(waveLevel); break;
             default:
                 return null;
+        }
+        
+        // Apply wave modifier effects (HP, speed multipliers)
+        if (enemy != null && modifier != null && modifier.hasModifier()) {
+            applyWaveModifier(enemy, modifier);
+        }
+        
+        // Apply elite modifier (skip for bosses)
+        if (enemy != null && !enemy.isBoss() && !enemy.isMiniBoss()) {
+            // Elite Wave modifier makes ALL enemies elite
+            if (modifier == WaveModifier.ELITE_WAVE) {
+                enemy.applyEliteModifier(javatower.entities.EliteModifier.randomForced());
+            } else {
+                javatower.entities.EliteModifier eliteMod = javatower.entities.EliteModifier.randomModifier(waveLevel);
+                enemy.applyEliteModifier(eliteMod);
+            }
+        }
+        
+        return enemy;
+    }
+    
+    private static void applyWaveModifier(Enemy enemy, WaveModifier mod) {
+        // Apply HP multiplier
+        double hpMult = mod.getHpMultiplier();
+        if (hpMult != 1.0) {
+            int newMaxHp = (int)(enemy.getMaxHealth() * hpMult);
+            enemy.setMaxHealth(newMaxHp);
+            enemy.setCurrentHealth(newMaxHp);
+        }
+        
+        // Apply speed multiplier
+        double speedMult = mod.getSpeedMultiplier();
+        if (speedMult != 1.0) {
+            enemy.setSpeed(enemy.getSpeed() * speedMult);
         }
     }
 
     public static List<Enemy> createWaveEnemies(int waveNumber) {
+        return createWaveEnemies(waveNumber, -1, WaveModifier.NONE);
+    }
+    
+    public static List<Enemy> createWaveEnemies(int waveNumber, int forcedCount, WaveModifier modifier) {
         List<Enemy> enemies = new ArrayList<>();
         int w = waveNumber;
 
@@ -143,11 +188,25 @@ public class EnemyFactory {
             addN(enemies, EnemyType.LICH, w, 5);
             addN(enemies, EnemyType.DEATH_KNIGHT, w, 5);
         }
+        
+        // Apply count multiplier from wave modifier
+        if (forcedCount > 0 && !enemies.isEmpty()) {
+            // Scale enemies to match forced count (approximate by duplicating)
+            while (enemies.size() < forcedCount) {
+                Enemy template = enemies.get(enemies.size() % enemies.size());
+                enemies.add(createEnemy(template.getEnemyType(), waveNumber, modifier));
+            }
+        }
+        
         return enemies;
     }
 
     private static void addN(List<Enemy> list, EnemyType type, int wave, int count) {
-        for (int i = 0; i < count; i++) list.add(createEnemy(type, wave));
+        addN(list, type, wave, count, WaveModifier.NONE);
+    }
+    
+    private static void addN(List<Enemy> list, EnemyType type, int wave, int count, WaveModifier mod) {
+        for (int i = 0; i < count; i++) list.add(createEnemy(type, wave, mod));
     }
 
     public static Enemy createMiniBoss(int waveNumber) {

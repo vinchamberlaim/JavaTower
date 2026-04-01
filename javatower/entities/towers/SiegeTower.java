@@ -21,24 +21,15 @@ public class SiegeTower extends Tower {
         for (Enemy e : enemies) {
             if (e.isAlive() && distanceTo(e) <= rangePx) {
                 e.takeDamage(getDamage());
+                recordDamage(getDamage());
+                if (!e.isAlive()) recordKill();
             }
         }
     }
 
     @Override
     public Enemy selectTarget(List<Enemy> enemies) {
-        double rangePx = getRangePixels();
-        // Target strongest enemy in range
-        Enemy strongest = null;
-        int maxHp = -1;
-        for (Enemy e : enemies) {
-            if (!e.isAlive()) continue;
-            if (distanceTo(e) <= rangePx && e.getCurrentHealth() > maxHp) {
-                maxHp = e.getCurrentHealth();
-                strongest = e;
-            }
-        }
-        return strongest;
+        return selectByMode(enemies);
     }
 
     @Override

@@ -1,0 +1,958 @@
+{
+  "project": "JavaTower",
+  "document": "100 Game Improvement Ideas — Brainstorm",
+  "created": "2026-03-24",
+  "authors": ["GitHub Copilot", "Kimi (to review & extend)"],
+  "instructions": "Both AIs: pick ideas from this list, mark status as you work, update assignee. Impact: 1-5 (5=game-changing). Effort: 1-5 (5=days of work). Priority = impact/effort ratio. Star ratings show recommendation strength.",
+
+  "categories": {
+    "A_VISUALS": "Art, sprites, animations, particle effects",
+    "B_GAMEPLAY": "Core mechanics, abilities, combat, progression",
+    "C_ENEMIES": "Enemy types, AI behavior, boss mechanics",
+    "D_TOWERS": "Tower types, upgrades, synergies",
+    "E_ITEMS": "Loot, drops, equipment, crafting",
+    "F_UI": "Menus, HUD, panels, quality-of-life",
+    "G_AUDIO": "Sound effects, music, ambient",
+    "H_META": "Save/load, progression, unlocks, achievements",
+    "I_WORLD": "Map, terrain, environment, obstacles",
+    "J_AI": "AI player, balance testing, automation"
+  },
+
+  "ideas": [
+    {
+      "id": 1,
+      "category": "A_VISUALS",
+      "title": "Hero pixel-art sprite",
+      "desc": "Replace teal circle with procedural pixel-art knight (sword/shield/armor visible). Animate idle breathing + walk cycle (2-frame swap).",
+      "impact": 5, "effort": 3, "priority": "★★★★★",
+      "assignee": "copilot", "status": "copilot-done",
+      "files": ["GameBoard.java"]
+    },
+    {
+      "id": 2,
+      "category": "A_VISUALS",
+      "title": "Enemy pixel-art sprites per tier",
+      "desc": "Each of 10 enemy types gets unique pixel art instead of colored circles. Skeleton=bones, Zombie=shambling, Wraith=transparent, etc.",
+      "impact": 5, "effort": 4, "priority": "★★★★",
+      "assignee": "kimi", "status": "not-started",
+      "files": ["GameBoard.java"]
+    },
+    {
+      "id": 3,
+      "category": "A_VISUALS",
+      "title": "Tower pixel-art per type + upgrade level",
+      "desc": "Arrow=wooden bow platform, Magic=crystal spire, Siege=catapult, Support=glowing shrine. Each upgrade level adds visual detail.",
+      "impact": 4, "effort": 3, "priority": "★★★★",
+      "assignee": "kimi", "status": "not-started",
+      "files": ["GameBoard.java"]
+    },
+    {
+      "id": 4,
+      "category": "A_VISUALS",
+      "title": "Death animation for enemies",
+      "desc": "Enemies don't just vanish — play 0.3s collapse/dissolve animation (shrink + fade + scatter particles) before bone pile spawns.",
+      "impact": 3, "effort": 2, "priority": "★★★★",
+      "assignee": "copilot", "status": "copilot-done",
+      "files": ["VisualEffect.java", "GameGUI.java"]
+    },
+    {
+      "id": 5,
+      "category": "A_VISUALS",
+      "title": "Projectile trail particles",
+      "desc": "Arrows leave dotted trails, magic bolts leave glowing particles, siege shots leave smoke trails. Fading behind projectile effects.",
+      "impact": 3, "effort": 2, "priority": "★★★★",
+      "assignee": "copilot", "status": "not-started",
+      "files": ["VisualEffect.java"]
+    },
+    {
+      "id": 6,
+      "category": "A_VISUALS",
+      "title": "Footstep dust particles on hero movement",
+      "desc": "Small puff particles spawn behind hero when moving. Different color on different terrain.",
+      "impact": 2, "effort": 1, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["GameGUI.java", "VisualEffect.java"]
+    },
+    {
+      "id": 7,
+      "category": "A_VISUALS",
+      "title": "Bone pile glow effect for fresh piles",
+      "desc": "Newly created bone piles pulse with faint necromantic green glow that fades over 5 seconds. Signals to player that enemies might consume them.",
+      "impact": 2, "effort": 1, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["GameBoard.java"]
+    },
+    {
+      "id": 8,
+      "category": "A_VISUALS",
+      "title": "Level-up flash effect",
+      "desc": "When hero levels up, golden ring expands outward from hero + floating 'LEVEL UP!' text. Brief screen flash.",
+      "impact": 3, "effort": 1, "priority": "★★★★★",
+      "assignee": "copilot", "status": "copilot-done",
+      "files": ["VisualEffect.java", "GameGUI.java"]
+    },
+    {
+      "id": 9,
+      "category": "A_VISUALS",
+      "title": "Equipment-based hero color scheme",
+      "desc": "Hero sprite tint changes based on equipped set: Holy=gold, Death=purple, Fire=red, Knight=blue. Shows class identity at a glance.",
+      "impact": 3, "effort": 2, "priority": "★★★★",
+      "assignee": "copilot", "status": "copilot-done",
+      "files": ["GameBoard.java", "Hero.java"]
+    },
+    {
+      "id": 10,
+      "category": "A_VISUALS",
+      "title": "Day/night cycle visual overlay",
+      "desc": "Background gradually shifts from blue to dark purple over waves. Undead get stronger at 'night' (higher wave). Atmospheric lighting overlay.",
+      "impact": 3, "effort": 2, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["GameBoard.java"]
+    },
+    {
+      "id": 11,
+      "category": "B_GAMEPLAY",
+      "title": "Enemy item drops on death",
+      "desc": "Enemies have loot table: 5% base chance for normal enemies, 30% for mini-bosses, 100% for bosses. Items auto-add to inventory or drop on ground if full.",
+      "impact": 5, "effort": 2, "priority": "★★★★★",
+      "assignee": "copilot", "status": "copilot-done",
+      "files": ["GameGUI.java", "ItemFactory.java"]
+    },
+    {
+      "id": 12,
+      "category": "B_GAMEPLAY",
+      "title": "Ground item pickups",
+      "desc": "When inventory is full, dropped items appear on the map as glowing squares. Hero walks over them to pick up (swaps or discards). Despawn after 30s.",
+      "impact": 4, "effort": 3, "priority": "★★★★",
+      "assignee": "kimi", "status": "not-started",
+      "files": ["GameGUI.java", "GameBoard.java"]
+    },
+    {
+      "id": 13,
+      "category": "B_GAMEPLAY",
+      "title": "Dodge roll mechanic",
+      "desc": "SPACE = dodge roll: 0.3s invincibility, quick dash in movement direction. 2s cooldown. Adds skill-based play.",
+      "impact": 4, "effort": 2, "priority": "★★★★★",
+      "assignee": "copilot", "status": "not-started",
+      "files": ["Hero.java", "GameGUI.java"]
+    },
+    {
+      "id": 14,
+      "category": "B_GAMEPLAY",
+      "title": "Experience/gold multiplier for kill streaks",
+      "desc": "Kill 5 enemies within 3 seconds = 1.5x XP/gold. Kill 10 = 2x. Visual combo counter on screen.",
+      "impact": 3, "effort": 2, "priority": "★★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["Hero.java", "GameGUI.java"]
+    },
+    {
+      "id": 15,
+      "category": "B_GAMEPLAY",
+      "title": "Mana regeneration over time",
+      "desc": "Passive 1 mana/second regen (configurable). Magic tree skills boost regen rate. Reduces potion dependency.",
+      "impact": 4, "effort": 1, "priority": "★★★★★",
+      "assignee": "copilot", "status": "copilot-done",
+      "files": ["Hero.java"]
+    },
+    {
+      "id": 16,
+      "category": "B_GAMEPLAY",
+      "title": "Consumable hotbar (1-3 slots)",
+      "desc": "Drag potions from inventory to hotbar slots. Press F1/F2/F3 to use instantly during combat. Auto-refill from inventory.",
+      "impact": 3, "effort": 3, "priority": "★★★",
+      "assignee": "kimi", "status": "not-started",
+      "files": ["GameGUI.java", "Hero.java"]
+    },
+    {
+      "id": 17,
+      "category": "B_GAMEPLAY",
+      "title": "Critical hit visual + sound feedback",
+      "desc": "Crits show bigger red damage numbers with '!' suffix + brief white flash on target + screen shake (already partially done).",
+      "impact": 2, "effort": 1, "priority": "★★★★",
+      "assignee": "copilot", "status": "not-started",
+      "files": ["VisualEffect.java"]
+    },
+    {
+      "id": 18,
+      "category": "B_GAMEPLAY",
+      "title": "Hero class selection at game start",
+      "desc": "Choice of Warrior/Mage/Ranger/Paladin — each starts with different weapon + stat distribution + unique ability. Reuses existing set archetypes.",
+      "impact": 5, "effort": 3, "priority": "★★★★★",
+      "assignee": "kimi", "status": "not-started",
+      "files": ["GameGUI.java", "Hero.java"]
+    },
+    {
+      "id": 19,
+      "category": "B_GAMEPLAY",
+      "title": "Difficulty selection (Easy/Normal/Hard/Nightmare)",
+      "desc": "Multiplier on enemy HP/ATK/speed. Higher difficulty = better drop rates + more XP. Shown on save slot.",
+      "impact": 4, "effort": 2, "priority": "★★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["GameGUI.java", "Constants.java", "WaveManager.java"]
+    },
+    {
+      "id": 20,
+      "category": "B_GAMEPLAY",
+      "title": "Bone pile consumption: enemies grow stronger",
+      "desc": "When enemies consume bone piles, they visibly grow larger (radius += 20%), gain HP and ATK. Creates urgency to kill fast or clean piles.",
+      "impact": 4, "effort": 2, "priority": "★★★★★",
+      "assignee": "copilot", "status": "copilot-done",
+      "files": ["Enemy.java", "GameBoard.java"]
+    },
+    {
+      "id": 21,
+      "category": "C_ENEMIES",
+      "title": "Enemy spawn animation",
+      "desc": "Enemies fade in from dark portal effect over 0.5s instead of appearing instantly. Gives player visual warning.",
+      "impact": 3, "effort": 2, "priority": "★★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["VisualEffect.java", "GameGUI.java"]
+    },
+    {
+      "id": 22,
+      "category": "C_ENEMIES",
+      "title": "Skeleton archers (ranged enemy tier 2)",
+      "desc": "Skeletons already have 150px range — add visible arrow projectiles and kiting AI (move away when hero gets close).",
+      "impact": 3, "effort": 2, "priority": "★★★★",
+      "assignee": "kimi", "status": "not-started",
+      "files": ["Enemy.java", "enemies/Skeleton.java", "VisualEffect.java"]
+    },
+    {
+      "id": 23,
+      "category": "C_ENEMIES",
+      "title": "Wraith phasing through towers",
+      "desc": "Wraith (canPhase=true) ignores tower collision, moves through them. Forces hero to deal with it directly instead of hiding behind tower wall.",
+      "impact": 3, "effort": 2, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["enemies/Wraith.java", "Enemy.java"]
+    },
+    {
+      "id": 24,
+      "category": "C_ENEMIES",
+      "title": "Revenant resurrection mechanic",
+      "desc": "Revenant (canResurrect=true) gets back up after 3 seconds at 50% HP unless bone pile is consumed by hero first. Creates destroy-pile urgency.",
+      "impact": 4, "effort": 3, "priority": "★★★★",
+      "assignee": "kimi", "status": "not-started",
+      "files": ["enemies/Revenant.java", "GameGUI.java"]
+    },
+    {
+      "id": 25,
+      "category": "C_ENEMIES",
+      "title": "Death Knight shield mechanic",
+      "desc": "Death Knight raises shield every 5 seconds, absorbing next 3 hits. Shield visible as blue overlay circle. Encourages timing attacks.",
+      "impact": 3, "effort": 2, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["enemies/DeathKnight.java"]
+    },
+    {
+      "id": 26,
+      "category": "C_ENEMIES",
+      "title": "Lich bone pile summoning AI",
+      "desc": "Lich actively seeks nearest bone pile, moves to it, consumes it to summon 2-3 skeletons. Prioritizes summoning over attacking when piles available.",
+      "impact": 4, "effort": 2, "priority": "★★★★★",
+      "assignee": "copilot", "status": "copilot-done",
+      "files": ["enemies/Lich.java", "Enemy.java"]
+    },
+    {
+      "id": 27,
+      "category": "C_ENEMIES",
+      "title": "Necromancer King multi-phase boss",
+      "desc": "Phase 1: melee. Phase 2 (50% HP): teleports + summons. Phase 3 (25% HP): enrage — double speed, AoE attacks. Health bar at top of screen.",
+      "impact": 5, "effort": 4, "priority": "★★★★",
+      "assignee": "kimi", "status": "not-started",
+      "files": ["enemies/NecromancerKing.java", "GameBoard.java"]
+    },
+    {
+      "id": 28,
+      "category": "C_ENEMIES",
+      "title": "Enemy aggro priority system",
+      "desc": "Enemies choose target: nearest tower if within 2 tiles, otherwise hero. Siege enemies prioritize towers. Creates tactical tower placement.",
+      "impact": 4, "effort": 2, "priority": "★★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["Enemy.java"]
+    },
+    {
+      "id": 29,
+      "category": "C_ENEMIES",
+      "title": "Elite enemy modifier system",
+      "desc": "10% chance any enemy spawns as Elite: 2x HP, +50% ATK, glowing gold outline, guaranteed item drop. Name prefixed with 'Elite'.",
+      "impact": 4, "effort": 2, "priority": "★★★★★",
+      "assignee": "copilot", "status": "not-started",
+      "files": ["EnemyFactory.java", "Enemy.java", "GameBoard.java"]
+    },
+    {
+      "id": 30,
+      "category": "C_ENEMIES",
+      "title": "Bone Colossus ground slam AoE",
+      "desc": "Every 4 seconds, Bone Colossus slams ground — damages hero if within 80px range, screen shake, knockback push effect.",
+      "impact": 3, "effort": 2, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["enemies/BoneColossus.java", "Hero.java"]
+    },
+    {
+      "id": 31,
+      "category": "D_TOWERS",
+      "title": "Tower targeting mode toggle",
+      "desc": "Click tower to cycle targeting: Nearest/Strongest/Weakest/First. Each mode changes which enemy the tower shoots. UI indicator.",
+      "impact": 4, "effort": 2, "priority": "★★★★★",
+      "assignee": "copilot", "status": "copilot-done",
+      "files": ["Tower.java", "GameGUI.java", "GameBoard.java"]
+    },
+    {
+      "id": 32,
+      "category": "D_TOWERS",
+      "title": "Tower upgrade paths (branching)",
+      "desc": "At level 2, choose path A or B. Arrow: Rapid Fire (+speed) vs Sniper (+range+dmg). Magic: AoE vs Single-target. Visual changes per path.",
+      "impact": 5, "effort": 4, "priority": "★★★★",
+      "assignee": "kimi", "status": "not-started",
+      "files": ["Tower.java", "towers/*.java", "GameGUI.java"]
+    },
+    {
+      "id": 33,
+      "category": "D_TOWERS",
+      "title": "Tower synergy bonuses",
+      "desc": "Place 2 same-type towers adjacent = +15% damage. 3+ = +30%. Support tower buffs all adjacent towers +25% range. Visual link lines between synced towers.",
+      "impact": 4, "effort": 3, "priority": "★★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["Tower.java", "GameGUI.java"]
+    },
+    {
+      "id": 34,
+      "category": "D_TOWERS",
+      "title": "Slow tower (5th tower type)",
+      "desc": "New tower that doesn't deal damage but slows enemies by 40% in range. Ice/frost theme. Cost: 30 gold.",
+      "impact": 4, "effort": 3, "priority": "★★★★",
+      "assignee": "kimi", "status": "not-started",
+      "files": ["towers/SlowTower.java", "TowerFactory.java", "Tower.java"]
+    },
+    {
+      "id": 35,
+      "category": "D_TOWERS",
+      "title": "Trap tower (6th tower type)",
+      "desc": "Ground-level trap. Invisible to enemies. Triggers once when enemy walks over: big damage + 2s stun. Rebuilds after 8s. Cost: 45 gold.",
+      "impact": 3, "effort": 3, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["towers/TrapTower.java", "TowerFactory.java"]
+    },
+    {
+      "id": 36,
+      "category": "D_TOWERS",
+      "title": "Tower range indicator on hover",
+      "desc": "Hovering mouse over placed tower shows full range circle (already partially done via selection). Make it work on mouse proximity without clicking.",
+      "impact": 2, "effort": 1, "priority": "★★★★",
+      "assignee": "copilot", "status": "not-started",
+      "files": ["GameBoard.java"]
+    },
+    {
+      "id": 37,
+      "category": "D_TOWERS",
+      "title": "Tower kill counter + DPS stats",
+      "desc": "Each tower tracks kills and total damage dealt. Show on hover tooltip. Helps player evaluate tower effectiveness.",
+      "impact": 3, "effort": 2, "priority": "★★★★",
+      "assignee": "copilot", "status": "copilot-done",
+      "files": ["Tower.java", "GameBoard.java"]
+    },
+    {
+      "id": 38,
+      "category": "D_TOWERS",
+      "title": "Tower repair mechanic",
+      "desc": "Enemies can damage towers if they reach them. Towers have HP bar. Hero can repair with gold (click tower + R). Adds strategic pressure.",
+      "impact": 4, "effort": 3, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["Tower.java", "Enemy.java", "GameBoard.java"]
+    },
+    {
+      "id": 39,
+      "category": "D_TOWERS",
+      "title": "Gold income tower (Support variant)",
+      "desc": "Support tower upgrade path option: generates 2 gold/second instead of healing. Trade combat power for economy.",
+      "impact": 3, "effort": 2, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["towers/SupportTower.java"]
+    },
+    {
+      "id": 40,
+      "category": "D_TOWERS",
+      "title": "Tower selling confirmation + refund display",
+      "desc": "When S is pressed with tower selected, show '50% refund = X gold — press S again to confirm' text overlay. Prevents accidental sells.",
+      "impact": 2, "effort": 1, "priority": "★★★★",
+      "assignee": "copilot", "status": "copilot-done",
+      "files": ["GameGUI.java", "GameBoard.java"]
+    },
+    {
+      "id": 41,
+      "category": "E_ITEMS",
+      "title": "Boss guaranteed legendary drop",
+      "desc": "Tier 9-10 bosses always drop at least EPIC quality item. Necromancer King drops LEGENDARY. Creates exciting boss reward moment.",
+      "impact": 5, "effort": 1, "priority": "★★★★★",
+      "assignee": "copilot", "status": "copilot-done",
+      "files": ["GameGUI.java", "ItemFactory.java"]
+    },
+    {
+      "id": 42,
+      "category": "E_ITEMS",
+      "title": "Item rarity glow on ground drops",
+      "desc": "Dropped items pulse with rarity color: gray/green/blue/purple/orange. Bigger glow = rarer item. Draws player attention.",
+      "impact": 3, "effort": 2, "priority": "★★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["GameBoard.java", "VisualEffect.java"]
+    },
+    {
+      "id": 43,
+      "category": "E_ITEMS",
+      "title": "Item comparison tooltip",
+      "desc": "When hovering item in inventory, show stat comparison vs currently equipped item (+/- in green/red). Massive QoL improvement.",
+      "impact": 4, "effort": 3, "priority": "★★★★",
+      "assignee": "kimi", "status": "not-started",
+      "files": ["InventoryPanel.java"]
+    },
+    {
+      "id": 44,
+      "category": "E_ITEMS",
+      "title": "Unique named item drops from bosses",
+      "desc": "Special hand-crafted items: 'Bone Crown of the Necromancer', 'Colossus Femur Greatsword'. Purple name, unique stat combos, flavor text.",
+      "impact": 4, "effort": 2, "priority": "★★★★★",
+      "assignee": "copilot", "status": "copilot-done",
+      "files": ["Item.java", "ItemFactory.java"]
+    },
+    {
+      "id": 45,
+      "category": "E_ITEMS",
+      "title": "Gem socket system",
+      "desc": "Weapons/armor can have 1-3 gem sockets. Find gems (Ruby=ATK, Sapphire=MANA, Emerald=DEF) and socket them for bonus stats.",
+      "impact": 4, "effort": 4, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["Item.java", "InventoryPanel.java"]
+    },
+    {
+      "id": 46,
+      "category": "E_ITEMS",
+      "title": "Auto-equip best item option",
+      "desc": "Button in inventory: 'Auto-Equip Best' — compares total stats and equips highest DPS/defense items automatically.",
+      "impact": 3, "effort": 2, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["InventoryPanel.java", "Hero.java"]
+    },
+    {
+      "id": 47,
+      "category": "E_ITEMS",
+      "title": "Salvage items for forge materials",
+      "desc": "Instead of just dropping items, salvage them for 'essence' used in forge upgrades. Gives value to unwanted drops.",
+      "impact": 3, "effort": 2, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["ForgePanel.java", "Item.java"]
+    },
+    {
+      "id": 48,
+      "category": "E_ITEMS",
+      "title": "Visual inventory with item size rendering",
+      "desc": "Show actual Tetris-style grid in inventory panel — items drawn as colored rectangles occupying their width×height cells. Drag to rearrange.",
+      "impact": 5, "effort": 4, "priority": "★★★★",
+      "assignee": "kimi", "status": "not-started",
+      "files": ["InventoryPanel.java"]
+    },
+    {
+      "id": 49,
+      "category": "E_ITEMS",
+      "title": "Potion auto-use at low HP",
+      "desc": "Toggle option: auto-use health potion when HP drops below 25%. Uses from inventory, not infinite.",
+      "impact": 2, "effort": 1, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["Hero.java", "GameGUI.java"]
+    },
+    {
+      "id": 50,
+      "category": "E_ITEMS",
+      "title": "Equipment durability system",
+      "desc": "Items lose durability on use (weapons on attack, armor on hit). Break at 0 — must repair at forge. Adds resource management.",
+      "impact": 3, "effort": 3, "priority": "★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["Item.java", "Hero.java", "ForgePanel.java"]
+    },
+    {
+      "id": 51,
+      "category": "F_UI",
+      "title": "Wave countdown timer HUD",
+      "desc": "Persistent top-center HUD showing: 'Wave 5/30 — Enemies: 12 remaining — Next wave: 2.3s'. Always visible.",
+      "impact": 4, "effort": 1, "priority": "★★★★★",
+      "assignee": "copilot", "status": "not-started",
+      "files": ["GameBoard.java", "GameGUI.java"]
+    },
+    {
+      "id": 52,
+      "category": "F_UI",
+      "title": "Ability cooldown indicators",
+      "desc": "Show Q/W/E/R ability icons in HUD with cooldown overlay (pie-chart timer). Gray out when not enough mana.",
+      "impact": 4, "effort": 2, "priority": "★★★★★",
+      "assignee": "copilot", "status": "copilot-done",
+      "files": ["GameBoard.java"]
+    },
+    {
+      "id": 53,
+      "category": "F_UI",
+      "title": "Mana bar under health bar on hero",
+      "desc": "Blue mana bar rendered below the green HP bar on the hero sprite. Shows mana at a glance during combat.",
+      "impact": 3, "effort": 1, "priority": "★★★★★",
+      "assignee": "copilot", "status": "copilot-done",
+      "files": ["GameBoard.java", "Hero.java"]
+    },
+    {
+      "id": 54,
+      "category": "F_UI",
+      "title": "Floating combat text variety",
+      "desc": "Different colors: white=normal, yellow=crit, green=heal, blue=mana restore, purple=set bonus proc. Font size scales with magnitude.",
+      "impact": 3, "effort": 2, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["VisualEffect.java"]
+    },
+    {
+      "id": 55,
+      "category": "F_UI",
+      "title": "Pause menu with resume/save/quit",
+      "desc": "Press P to pause game. Overlay menu: Resume, Save, Settings, Quit to Menu. Timer stops, game freezes.",
+      "impact": 4, "effort": 2, "priority": "★★★★",
+      "assignee": "kimi", "status": "not-started",
+      "files": ["GameGUI.java", "GameState.java"]
+    },
+    {
+      "id": 56,
+      "category": "F_UI",
+      "title": "Tooltip system for all buttons",
+      "desc": "Hover any action bar button to see description, mana cost, cooldown, key binding. Consistent tooltip styling.",
+      "impact": 3, "effort": 2, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["GameGUI.java"]
+    },
+    {
+      "id": 57,
+      "category": "F_UI",
+      "title": "XP bar under hero panel",
+      "desc": "Visual progress bar showing XP toward next level. Satisfying fill animation when gaining XP.",
+      "impact": 3, "effort": 1, "priority": "★★★★",
+      "assignee": "copilot", "status": "copilot-done",
+      "files": ["HeroPanel.java"]
+    },
+    {
+      "id": 58,
+      "category": "F_UI",
+      "title": "Damage log sidebar",
+      "desc": "Scrolling text log on right panel: 'Hero hits Skeleton for 24 dmg (CRIT!)', 'Lich consumed bone pile', 'Wave 5 complete'. Last 20 entries.",
+      "impact": 3, "effort": 2, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["GameGUI.java", "HeroPanel.java"]
+    },
+    {
+      "id": 59,
+      "category": "F_UI",
+      "title": "Gold change notification",
+      "desc": "When gaining/spending gold, flash '+15g' or '-50g' near gold counter. Green for gain, red for spend.",
+      "impact": 2, "effort": 1, "priority": "★★★★",
+      "assignee": "copilot", "status": "copilot-done",
+      "files": ["HeroPanel.java"]
+    },
+    {
+      "id": 60,
+      "category": "F_UI",
+      "title": "Key binding reference overlay",
+      "desc": "Press F1 or ? to show semi-transparent overlay listing all key bindings. Press again to dismiss.",
+      "impact": 3, "effort": 1, "priority": "★★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["GameGUI.java", "GameBoard.java"]
+    },
+    {
+      "id": 61,
+      "category": "G_AUDIO",
+      "title": "Attack sound effects",
+      "desc": "Sword swing, bow twang, magic zap, holy chime. Different sound per weapon class. Use JavaFX AudioClip.",
+      "impact": 4, "effort": 3, "priority": "★★★★",
+      "assignee": "kimi", "status": "not-started",
+      "files": ["GameGUI.java", "assets/sounds/"]
+    },
+    {
+      "id": 62,
+      "category": "G_AUDIO",
+      "title": "Enemy death sound",
+      "desc": "Bone crunch sound when enemies die. Louder for bosses. Satisfying feedback.",
+      "impact": 3, "effort": 2, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["GameGUI.java"]
+    },
+    {
+      "id": 63,
+      "category": "G_AUDIO",
+      "title": "Background music loop",
+      "desc": "Dark ambient dungeon loop during gameplay. Menu gets different track. Volume slider in settings.",
+      "impact": 3, "effort": 2, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["GameGUI.java"]
+    },
+    {
+      "id": 64,
+      "category": "G_AUDIO",
+      "title": "Level-up jingle",
+      "desc": "Short triumphant chime when hero levels up. Paired with visual level-up effect (#8).",
+      "impact": 2, "effort": 1, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["GameGUI.java"]
+    },
+    {
+      "id": 65,
+      "category": "G_AUDIO",
+      "title": "Tower placement click sound",
+      "desc": "Satisfying 'thunk' when placing tower. Error buzz when invalid placement.",
+      "impact": 2, "effort": 1, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["GameGUI.java"]
+    },
+    {
+      "id": 66,
+      "category": "G_AUDIO",
+      "title": "Wave start horn/bell",
+      "desc": "War horn sound at wave start. Bell toll for boss waves. Gives urgency.",
+      "impact": 2, "effort": 1, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["GameGUI.java"]
+    },
+    {
+      "id": 67,
+      "category": "G_AUDIO",
+      "title": "Volume/mute controls",
+      "desc": "Settings panel or simple M key to mute all audio. Separate sliders for music, SFX, UI sounds.",
+      "impact": 2, "effort": 1, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["GameGUI.java"]
+    },
+    {
+      "id": 68,
+      "category": "H_META",
+      "title": "Achievement system",
+      "desc": "25 achievements: First Kill, Wave 10, 100 Kills, Full Set Equipped, Max Level, All Skills, etc. Popup notification + achievement panel.",
+      "impact": 4, "effort": 3, "priority": "★★★★",
+      "assignee": "kimi", "status": "not-started",
+      "files": ["systems/AchievementManager.java (NEW)", "GameGUI.java"]
+    },
+    {
+      "id": 69,
+      "category": "H_META",
+      "title": "Post-game stats screen",
+      "desc": "Detailed end screen: DPS graph over time, gold earned per wave, items found, abilities used, towers built, damage taken. Data from GameMetrics.",
+      "impact": 4, "effort": 3, "priority": "★★★★",
+      "assignee": "copilot", "status": "not-started",
+      "files": ["GameGUI.java", "GameMetrics.java"]
+    },
+    {
+      "id": 70,
+      "category": "H_META",
+      "title": "New Game+ mode",
+      "desc": "After wave 30 victory, restart with scaled-up enemies but keep equipment. Waves 31-60 with 2x HP enemies. Endless progression.",
+      "impact": 4, "effort": 2, "priority": "★★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["GameGUI.java", "WaveManager.java"]
+    },
+    {
+      "id": 71,
+      "category": "H_META",
+      "title": "Bestiary / monster codex",
+      "desc": "Panel showing all encountered enemy types with stats, drop tables, kill count. Lore text for each. Unlocks as you encounter them.",
+      "impact": 3, "effort": 3, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["gui/BestiaryPanel.java (NEW)"]
+    },
+    {
+      "id": 72,
+      "category": "H_META",
+      "title": "Leaderboard (local high scores)",
+      "desc": "Track top 10 runs: wave reached, kills, time survived, gold earned. Stored in SQLite. Shown from main menu.",
+      "impact": 3, "effort": 2, "priority": "★★★",
+      "assignee": "kimi", "status": "not-started",
+      "files": ["DatabaseManager.java", "GameGUI.java"]
+    },
+    {
+      "id": 73,
+      "category": "H_META",
+      "title": "Meta-progression: permanent upgrades",
+      "desc": "Spending 'souls' (earned on death/victory) on permanent buffs that persist across runs: +5% max HP, +1 starting gold, etc.",
+      "impact": 4, "effort": 3, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["DatabaseManager.java", "Hero.java"]
+    },
+    {
+      "id": 74,
+      "category": "H_META",
+      "title": "Tutorial / first-time guide",
+      "desc": "On very first game, highlight key UI elements with arrows + text boxes. 'Click to move', 'Press 1 to place tower', etc. Skippable.",
+      "impact": 3, "effort": 3, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["GameGUI.java"]
+    },
+    {
+      "id": 75,
+      "category": "H_META",
+      "title": "Run timer display",
+      "desc": "Show elapsed time in top corner. Used for speedrun records on leaderboard.",
+      "impact": 2, "effort": 1, "priority": "★★★★",
+      "assignee": "copilot", "status": "copilot-done",
+      "files": ["GameGUI.java", "GameBoard.java"]
+    },
+    {
+      "id": 76,
+      "category": "I_WORLD",
+      "title": "Terrain types affecting movement",
+      "desc": "Some tiles are swamp (slow 50%), lava (damage), grass (normal), stone (fast). Random map gen or predefined layouts per wave range.",
+      "impact": 4, "effort": 4, "priority": "★★★",
+      "assignee": "kimi", "status": "not-started",
+      "files": ["GameBoard.java", "Hero.java", "Enemy.java"]
+    },
+    {
+      "id": 77,
+      "category": "I_WORLD",
+      "title": "Obstacles / walls on map",
+      "desc": "Some tiles have rocks/walls that block movement. Creates natural chokepoints for tower placement strategy.",
+      "impact": 4, "effort": 3, "priority": "★★★★",
+      "assignee": "kimi", "status": "not-started",
+      "files": ["GameBoard.java", "Enemy.java"]
+    },
+    {
+      "id": 78,
+      "category": "I_WORLD",
+      "title": "Multiple spawn points for enemies",
+      "desc": "Instead of all from right side, enemies spawn from 2-4 edges. Higher waves = more spawn points. Prevents tower-wall cheese.",
+      "impact": 4, "effort": 2, "priority": "★★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["GameGUI.java", "WaveManager.java"]
+    },
+    {
+      "id": 79,
+      "category": "I_WORLD",
+      "title": "Destructible environment objects",
+      "desc": "Barrels, gravestones, crates on map. Hero can break them for small gold/mana/HP pickups. Enemies smash through them.",
+      "impact": 3, "effort": 3, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["GameBoard.java", "GameGUI.java"]
+    },
+    {
+      "id": 80,
+      "category": "I_WORLD",
+      "title": "Map variety per wave tier",
+      "desc": "Waves 1-10: graveyard. 11-20: crypt. 21-30: throne room. Each with different background, tile colors, and obstacle layouts.",
+      "impact": 4, "effort": 3, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["GameBoard.java"]
+    },
+    {
+      "id": 81,
+      "category": "I_WORLD",
+      "title": "Base/nexus to defend",
+      "desc": "Instead of just hero HP, add a base at left side with its own HP. If base dies = game over. Adds tower defense core loop.",
+      "impact": 5, "effort": 3, "priority": "★★★★★",
+      "assignee": "kimi", "status": "not-started",
+      "files": ["GameGUI.java", "GameBoard.java", "Enemy.java"]
+    },
+    {
+      "id": 82,
+      "category": "I_WORLD",
+      "title": "Gold coins on ground from kills",
+      "desc": "When enemies die, scatter 1-3 gold coin sprites that hero must walk over to collect. Auto-collect if nearby. Adds satisfying pickup loop.",
+      "impact": 3, "effort": 2, "priority": "★★★★",
+      "assignee": "copilot", "status": "not-started",
+      "files": ["GameGUI.java", "GameBoard.java"]
+    },
+    {
+      "id": 83,
+      "category": "I_WORLD",
+      "title": "Treasure chest spawns",
+      "desc": "Rare chance (5% per wave) a treasure chest spawns on map. Hero walks to it to open: random rare+ item. Guarded by enemies.",
+      "impact": 3, "effort": 2, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["GameGUI.java", "GameBoard.java"]
+    },
+    {
+      "id": 84,
+      "category": "I_WORLD",
+      "title": "Healing fountain tile",
+      "desc": "One tile on map is a glowing fountain. Hero standing on it regens 5 HP/second. Enemies can destroy it.",
+      "impact": 2, "effort": 2, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["GameBoard.java", "GameGUI.java"]
+    },
+    {
+      "id": 85,
+      "category": "I_WORLD",
+      "title": "Portal/teleport tiles",
+      "desc": "Two linked portal tiles on map. Hero steps on one, teleports to other. Quick repositioning. Enemies ignore them.",
+      "impact": 2, "effort": 2, "priority": "★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["GameBoard.java", "Hero.java"]
+    },
+    {
+      "id": 86,
+      "category": "J_AI",
+      "title": "AI auto-player (headless bot)",
+      "desc": "AIPlayer class runs game loop without rendering. Makes decisions: move toward nearest enemy, use abilities on cooldown, place towers optimally. Logs GameMetrics.",
+      "impact": 5, "effort": 4, "priority": "★★★★★",
+      "assignee": "copilot", "status": "not-started",
+      "files": ["ai/AIPlayer.java (NEW)", "ai/AIStrategy.java (NEW)"]
+    },
+    {
+      "id": 87,
+      "category": "J_AI",
+      "title": "AI balance report generator",
+      "desc": "After AI plays N games, generate report: average wave reached, DPS per weapon class, tower effectiveness ranking, skill tree path popularity, death causes.",
+      "impact": 5, "effort": 3, "priority": "★★★★★",
+      "assignee": "copilot", "status": "not-started",
+      "files": ["ai/AIBalanceReport.java (NEW)", "GameMetrics.java"]
+    },
+    {
+      "id": 88,
+      "category": "J_AI",
+      "title": "AI-driven difficulty auto-tuning",
+      "desc": "If AI wins too easily, increase enemy scaling. If AI dies consistently on wave X, nerf that wave. Writes adjusted values to GameBalanceConfig.",
+      "impact": 5, "effort": 4, "priority": "★★★★",
+      "assignee": "copilot", "status": "not-started",
+      "files": ["ai/AIBalanceTuner.java (NEW)", "GameBalanceConfig.java"]
+    },
+    {
+      "id": 89,
+      "category": "J_AI",
+      "title": "AI tower placement optimizer",
+      "desc": "Tries all possible tower layouts, scores them by wave survival. Uses heuristic: coverage overlap, chokepoint detection, cost efficiency.",
+      "impact": 4, "effort": 4, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["ai/AITowerPlanner.java (NEW)"]
+    },
+    {
+      "id": 90,
+      "category": "J_AI",
+      "title": "AI item evaluation scoring",
+      "desc": "Score items by: DPS increase, survivability increase, set completion progress. Used for auto-equip decisions and shop purchase priority.",
+      "impact": 3, "effort": 2, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["ai/AIItemEvaluator.java (NEW)"]
+    },
+    {
+      "id": 91,
+      "category": "B_GAMEPLAY",
+      "title": "Knockback on hero melee attacks",
+      "desc": "Melee attacks push enemy back 10px. Keeps enemies from mobbing hero. Heavier enemies resist more.",
+      "impact": 3, "effort": 1, "priority": "★★★★",
+      "assignee": "copilot", "status": "not-started",
+      "files": ["Hero.java", "Enemy.java"]
+    },
+    {
+      "id": 92,
+      "category": "B_GAMEPLAY",
+      "title": "Stun effect from siege tower hits",
+      "desc": "Siege tower hits stun enemy for 0.5s (can't move or attack). Visible stun stars above head.",
+      "impact": 3, "effort": 2, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["towers/SiegeTower.java", "Enemy.java"]
+    },
+    {
+      "id": 93,
+      "category": "B_GAMEPLAY",
+      "title": "Poison/DoT effect from magic tower",
+      "desc": "Magic tower applies poison: 3 damage/second for 3 seconds. Stacks up to 3 times. Green tint on poisoned enemies.",
+      "impact": 3, "effort": 2, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["towers/MagicTower.java", "Enemy.java"]
+    },
+    {
+      "id": 94,
+      "category": "B_GAMEPLAY",
+      "title": "Rage meter (fills on kills, empowers hero)",
+      "desc": "Kill counter fills rage bar. At 100%, press V for 5s Rage Mode: +100% ATK, +50% speed, red visual aura. Adds dynamic combat moment.",
+      "impact": 4, "effort": 2, "priority": "★★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["Hero.java", "GameGUI.java", "GameBoard.java"]
+    },
+    {
+      "id": 95,
+      "category": "A_VISUALS",
+      "title": "Blood/ichor splatter on hit",
+      "desc": "When enemy takes damage, small green ichor particles spray in hit direction. Bigger for crits. Fades quickly.",
+      "impact": 2, "effort": 1, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["VisualEffect.java"]
+    },
+    {
+      "id": 96,
+      "category": "F_UI",
+      "title": "Enemy wave preview",
+      "desc": "During wave delay, show 'Next wave: 5x Skeleton, 3x Ghoul, 1x Wight' preview. Lets player prepare.",
+      "impact": 4, "effort": 2, "priority": "★★★★★",
+      "assignee": "copilot", "status": "not-started",
+      "files": ["WaveInfoPanel.java", "WaveManager.java"]
+    },
+    {
+      "id": 97,
+      "category": "C_ENEMIES",
+      "title": "Enemy buff aura from Death Knight",
+      "desc": "Death Knight boosts all nearby enemies: +20% ATK, +10% speed within 100px. Killing DK removes buff. Focus target priority.",
+      "impact": 4, "effort": 2, "priority": "★★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["enemies/DeathKnight.java", "Enemy.java"]
+    },
+    {
+      "id": 98,
+      "category": "B_GAMEPLAY",
+      "title": "Between-wave shop auto-open",
+      "desc": "Option to auto-open shop between waves. Skip button to rush next wave. Streamlines shopping flow.",
+      "impact": 2, "effort": 1, "priority": "★★★",
+      "assignee": "unassigned", "status": "not-started",
+      "files": ["GameGUI.java"]
+    },
+    {
+      "id": 99,
+      "category": "H_META",
+      "title": "Skill reset NPC in shop",
+      "desc": "Pay 100 gold to reset all skill points. Lets player respec for different builds. Button in shop panel.",
+      "impact": 3, "effort": 1, "priority": "★★★★",
+      "assignee": "copilot", "status": "not-started",
+      "files": ["ShopPanel.java", "Hero.java"]
+    },
+    {
+      "id": 100,
+      "category": "B_GAMEPLAY",
+      "title": "Active bone pile interaction for hero",
+      "desc": "Hero can consume bone piles too: press C near a pile to destroy it (denying enemies). Gain small HP/mana. Tactical decision.",
+      "impact": 3, "effort": 1, "priority": "★★★★",
+      "assignee": "copilot", "status": "not-started",
+      "files": ["GameGUI.java", "Hero.java"]
+    }
+  ],
+
+  "topPicks": {
+    "copilot_priority": [
+      {"id": 1, "reason": "Hero is still a circle — biggest visual gap"},
+      {"id": 11, "reason": "No loot drops = no reward loop from enemies"},
+      {"id": 41, "reason": "Boss drops are trivial to add, huge payoff"},
+      {"id": 15, "reason": "Mana regen is 1 line, fixes mana starvation"},
+      {"id": 8, "reason": "Level-up effect is cheap, feels great"},
+      {"id": 51, "reason": "Wave HUD is essential info players need"},
+      {"id": 52, "reason": "Ability cooldown UI prevents confusion"},
+      {"id": 20, "reason": "Bone consumption growth makes enemies scary"},
+      {"id": 86, "reason": "AI player enables automated balance testing"},
+      {"id": 29, "reason": "Elite enemies add variety with little code"}
+    ],
+    "kimi_priority": [
+      {"id": 2, "reason": "Enemy sprites — biggest visual upgrade after hero"},
+      {"id": 18, "reason": "Class selection adds replay value"},
+      {"id": 27, "reason": "Boss phases make final boss epic"},
+      {"id": 32, "reason": "Tower upgrade paths deepen strategy"},
+      {"id": 48, "reason": "Visual grid inventory was user's request"},
+      {"id": 81, "reason": "Base defense is core TD identity"},
+      {"id": 77, "reason": "Map obstacles create chokepoints"},
+      {"id": 24, "reason": "Revenant resurrection is unique mechanic"},
+      {"id": 68, "reason": "Achievements extend playtime"},
+      {"id": 43, "reason": "Item comparison is massive QoL"}
+    ]
+  },
+
+  "quickWins": {
+    "note": "Ideas that can each be done in <30 minutes with high impact",
+    "ids": [15, 8, 41, 51, 53, 57, 59, 75, 91, 99, 100, 17, 40]
+  },
+
+  "kimiInstructions": "Read this file. Pick tasks from topPicks.kimi_priority or any unassigned idea. Set assignee to 'kimi' and status to 'in-progress' before starting. Mark 'completed' when done. Don't touch copilot-assigned ideas. Update dev_tasks.json with any new completions. Compile frequently.",
+  "copilotInstructions": "Start with quickWins and topPicks.copilot_priority. Same workflow: claim → implement → mark done → compile."
+}
