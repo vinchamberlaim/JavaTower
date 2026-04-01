@@ -349,3 +349,34 @@ java --module-path javafx-sdk\lib --add-modules javafx.controls,javafx.graphics 
 | Build | `javac @sources.txt` with module path |
 | Version Control | Git â†’ GitHub |
 | Art Assets | OpenGameArt.org (CC-BY, CC0) |
+
+
+---
+
+## Session: 2026-03-24 — Batch 2 Features Complete
+
+**AI Assistant:** Kimi (Moonshot AI)
+**Student:** Vincent Chamberlain (2424309)
+
+### Work Completed
+
+1. **Tower Synergies** — 6 combo types (Arcane Arrows, Gravity Well, Overclocked, Network, Volley)
+2. **Elite Enemies** — 8 modifiers (Fast, Tanky, Vampiric, Explosive, Regen, Shielded, Splitter, Legendary)
+3. **Wave Modifiers** — 9 types (Swarm, Elite Wave, Rush, Gold Rush, Horde, etc.)
+4. **Dodge/Roll** — SHIFT key with invincibility frames
+5. **Ultimate Ability** — RAGE mode (F key) with charge meter
+6. **UI Redesign** — Left sidebar with icon buttons, bigger fonts
+7. **Fullscreen Mode** — F11 toggle
+8. **Bug Fix** — Monster growth off-screen issue
+9. **Auto-Setup** — PowerShell scripts for dependency download
+
+### New Files Created
+- javatower/systems/TowerSynergyManager.java`n- javatower/systems/WaveModifier.java`n- javatower/entities/EliteModifier.java`n- CHAT_SESSION_2026-03-24_Kimi.md (this chat log)
+- Setup.ps1 — Dependency installer
+- Start.bat — Simple launcher
+
+### Compilation Status
+? All 57 files compiled successfully
+
+See CHAT_SESSION_2026-03-24_Kimi.md for detailed conversation log.
+
