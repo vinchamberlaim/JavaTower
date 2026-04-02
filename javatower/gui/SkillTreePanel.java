@@ -14,7 +14,21 @@ import javatower.systems.SkillNode;
 import java.util.List;
 
 /**
- * Visual skill tree panel with node unlock buttons.
+ * Full-screen skill-tree UI with node-unlock buttons and a respec option.
+ * <p>
+ * Displays all three hero skill trees (Combat, Magic, Utility) in a
+ * scrollable list. Each {@link SkillNode} shows its name, description,
+ * cost, and unlock state. The player can unlock nodes if prerequisites
+ * are met and enough skill points are available.
+ * </p>
+ * <p>
+ * A <b>Respec</b> button refunds all spent points, resets base stats to
+ * their level-appropriate values, and re-applies any still-unlocked nodes.
+ * </p>
+ *
+ * @author Vincent Chamberlain (2424309)
+ * @see SkillTree
+ * @see SkillNode
  */
 public class SkillTreePanel extends VBox {
     private Hero hero;
@@ -44,14 +58,45 @@ public class SkillTreePanel extends VBox {
 
         treeContent = new VBox(8);
 
+        // Respec button (refund all skill points)
+        Button respecBtn = new Button("🔄 Respec All (Refund Points)");
+        respecBtn.setFont(Font.font("Monospaced", FontWeight.BOLD, 16));
+        respecBtn.setStyle("-fx-background-color: #f97316; -fx-text-fill: white; -fx-cursor: hand;");
+        respecBtn.setOnAction(e -> {
+            int refunded = 0;
+            if (hero.getCombatTree() != null) refunded += hero.getCombatTree().respec();
+            if (hero.getMagicTree() != null) refunded += hero.getMagicTree().respec();
+            if (hero.getUtilityTree() != null) refunded += hero.getUtilityTree().respec();
+            if (refunded > 0) {
+                hero.setSkillPoints(hero.getSkillPoints() + refunded);
+                // Re-apply base stats (reset and re-apply)
+                hero.setMaxHealth(100 + (hero.getLevel() - 1) * 10);
+                hero.setAttack(10 + (hero.getLevel() - 1) * 2);
+                hero.setDefence(5 + (hero.getLevel() - 1));
+                hero.setMaxMana(50 + (hero.getLevel() - 1) * 5);
+                // Re-apply unlocked skills
+                hero.getCombatTree().applyBonuses(hero);
+                hero.getMagicTree().applyBonuses(hero);
+                hero.getUtilityTree().applyBonuses(hero);
+                statusLabel.setText("Respec complete! Refunded " + refunded + " points");
+            } else {
+                statusLabel.setText("No points to refund");
+            }
+            refresh();
+        });
+        
         Button backBtn = new Button("Back to Game");
         backBtn.setFont(Font.font("Monospaced", FontWeight.BOLD, 20));
         backBtn.setStyle("-fx-background-color: #e94560; -fx-text-fill: white; -fx-cursor: hand;");
         backBtn.setOnAction(e -> gui.returnToGame());
 
+        HBox buttonRow = new HBox(15);
+        buttonRow.setAlignment(Pos.CENTER);
+        buttonRow.getChildren().addAll(respecBtn, backBtn);
+
         VBox inner = new VBox(8);
         inner.setPadding(new Insets(10));
-        inner.getChildren().addAll(pointsLabel, statusLabel, treeContent, backBtn);
+        inner.getChildren().addAll(pointsLabel, statusLabel, treeContent, buttonRow);
 
         ScrollPane scroll = new ScrollPane(inner);
         scroll.setFitToWidth(true);

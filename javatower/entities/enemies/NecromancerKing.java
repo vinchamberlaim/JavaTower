@@ -19,31 +19,48 @@ import javatower.util.Constants;
  */
 public class NecromancerKing extends Enemy {
 
-    // --- Weapon: Sword (melee) ---
+    // ==================== Weapon: Sword (melee) ====================
+    /** Whether the Necromancer King currently has a sword equipped. */
     private boolean hasSword = true;
+    /** Sword minimum effective range (0 = point-blank). */
     private static final double SWORD_MIN_RANGE = 0;
+    /** Sword maximum effective range in pixels. */
     private static final double SWORD_MAX_RANGE = 50;
+    /** Sword damage multiplier applied to base ATK. */
     private static final double SWORD_DAMAGE_MULT = 1.5;
+    /** Seconds between consecutive sword swings. */
     private static final double SWORD_COOLDOWN = 1.0;
 
-    // --- Weapon: Bow (ranged) ---
+    // ==================== Weapon: Bow (ranged) ====================
+    /** Whether the Necromancer King currently has a bow equipped. */
     private boolean hasBow = true;
+    /** Bow minimum effective range — cannot fire at closer targets. */
     private static final double BOW_MIN_RANGE = 80;
+    /** Bow maximum effective range in pixels. */
     private static final double BOW_MAX_RANGE = 260;
+    /** Bow damage multiplier applied to base ATK. */
     private static final double BOW_DAMAGE_MULT = 0.7;
+    /** Seconds between consecutive bow shots. */
     private static final double BOW_COOLDOWN = 1.8;
 
-    // --- AI movement ---
-    private static final double PREFERRED_DIST = 180; // wants to stay mid-bow range
-    private static final double FLEE_DIST = SWORD_MAX_RANGE + 10; // flee when hero gets inside melee
+    // ==================== AI Movement ====================
+    /** Distance the King prefers to maintain (mid-bow range). */
+    private static final double PREFERRED_DIST = 180;
+    /** Distance at which the King will flee away from the hero. */
+    private static final double FLEE_DIST = SWORD_MAX_RANGE + 10;
 
-    // --- Timers ---
+    // ==================== Timers ====================
+    /** Accumulator for sword attack cooldown. */
     private double swordTimer = 0;
+    /** Accumulator for bow attack cooldown. */
     private double bowTimer = 0;
+    /** Accumulator for minion-summon cooldown. */
     private double summonTimer = 0;
+    /** Seconds between summon attempts. */
     private static final double SUMMON_COOLDOWN = 8.0;
 
-    private int baseAtk; // cached base attack for multiplier math
+    /** Cached base attack value for applying weapon multipliers. */
+    private int baseAtk;
 
     public NecromancerKing(int waveLevel) {
         super(EnemyType.NECROMANCER_KING, waveLevel);
@@ -137,8 +154,8 @@ public class NecromancerKing extends Enemy {
         double fleeX = getX() + (dx / len) * 300;
         double fleeY = getY() + (dy / len) * 300;
         double r = getRadius();
-        fleeX = Math.max(r, Math.min(Constants.SCREEN_WIDTH - r, fleeX));
-        fleeY = Math.max(r, Math.min(Constants.SCREEN_HEIGHT - r, fleeY));
+        fleeX = Math.max(r, Math.min(Constants.WORLD_WIDTH - r, fleeX));
+        fleeY = Math.max(r, Math.min(Constants.WORLD_HEIGHT - r, fleeY));
         smoothMoveToward(fleeX, fleeY, dt);
     }
 
@@ -151,8 +168,8 @@ public class NecromancerKing extends Enemy {
         double strafeX = getX() + (-dy / len) * 60;
         double strafeY = getY() + (dx / len) * 60;
         double r = getRadius();
-        strafeX = Math.max(r, Math.min(Constants.SCREEN_WIDTH - r, strafeX));
-        strafeY = Math.max(r, Math.min(Constants.SCREEN_HEIGHT - r, strafeY));
+        strafeX = Math.max(r, Math.min(Constants.WORLD_WIDTH - r, strafeX));
+        strafeY = Math.max(r, Math.min(Constants.WORLD_HEIGHT - r, strafeY));
         smoothMoveToward(strafeX, strafeY, dt);
     }
 

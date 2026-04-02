@@ -194,3 +194,44 @@ Planning complete. Identified 16 features to implement without conflicting with 
 3. **Checked for Kimi overlap** before implementing each feature
 4. **Compiled after every change** to ensure zero errors
 5. **Tested by running the game** 6+ times
+
+---
+
+## Session 5 — Runtime Fixes, Wave Timeout Removal & Javadoc Annotations
+
+### Runtime Fixes
+1. **SQLite JDBC driver not found** — Added `Class.forName("org.sqlite.JDBC")` in `DatabaseManager.java` to explicitly load the driver before `DriverManager.getConnection()`
+2. **SLF4J missing dependency** — Downloaded `slf4j-api-2.0.9.jar` and `slf4j-nop-2.0.9.jar` into `lib/` to silence SLF4J warnings from the SQLite driver
+3. **Game launched and ran successfully** multiple times after these fixes
+
+### Wave Timeout Removal
+- Removed the 3-second wave delay block from `GameGUI.java`
+- Replaced with immediate `waveManager.nextWave()` + `startWave()` for seamless wave transitions
+
+### Thorough Javadoc Annotations (14 Files)
+Added comprehensive Javadoc to all 14 modified files for academic submission quality:
+
+| File | Annotations Added |
+|------|-------------------|
+| Constants.java | Full rewrite — @author/@version, section headers, every field documented |
+| DatabaseManager.java | Expanded class Javadoc with table schema descriptions |
+| Enemy.java | Class Javadoc (EliteModifier/BonePile references), EnemyType enum per-value docs, all fields, constructor @param tags |
+| Hero.java | Class Javadoc (all 6 systems documented), field section headers, constructor + attackEnemy method docs |
+| Lich.java | Class Javadoc (5 AI behaviours listed), all 6 fields documented |
+| NecromancerKing.java | All weapon/AI/timer fields expanded with section headers |
+| GameGUI.java | Class Javadoc with hotkey reference table, all field groups documented |
+| GameBoard.java | Class Javadoc (5 subsystem responsibilities), all field groups with section headers |
+| ForgePanel.java | Class Javadoc describing item-combining flow and layout |
+| HeroPanel.java | Class Javadoc describing refresh behaviour |
+| ShopPanel.java | Class Javadoc describing buy/sell sections |
+| SkillTreePanel.java | Class Javadoc describing node unlock and respec |
+| MiniMap.java | Class Javadoc with rendering details (hero/tower/enemy dots, viewport) |
+| SkillTree.java | Class Javadoc describing DAG structure, unlock mechanics, respec |
+
+### Compile & Run
+- All files compiled with zero errors after annotations
+- Fixed one annotation-induced bug (missing constructor declaration in Enemy.java)
+
+### Git
+- Committed as: "feat: fix SQLite driver, add SLF4J, remove wave delay, annotate all files"
+- Pushed to `origin/master`

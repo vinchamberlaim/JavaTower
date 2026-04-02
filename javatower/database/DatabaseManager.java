@@ -4,7 +4,20 @@ import java.sql.*;
 import javatower.entities.Hero;
 
 /**
- * Singleton for managing SQLite persistence.
+ * Singleton manager for SQLite database persistence.
+ * <p>
+ * Handles two tables:
+ * <ul>
+ *   <li><b>save_state</b> — stores the hero's in-progress run (HP, level, position, wave).</li>
+ *   <li><b>meta_progression</b> — stores cross-run data (max wave reached, total gold, inventory size).</li>
+ * </ul>
+ * The database file ({@code javatower.db}) is created on first launch.
+ * All DB operations are optional — the game degrades gracefully if the
+ * SQLite driver is unavailable.
+ * </p>
+ *
+ * @author Vincent Chamberlain (2424309)
+ * @version 2.0
  */
 public class DatabaseManager {
     private static DatabaseManager instance;
@@ -27,6 +40,7 @@ public class DatabaseManager {
     public void initialize() {
         boolean isFirstRun = !new java.io.File("javatower.db").exists();
         try {
+            Class.forName("org.sqlite.JDBC");
             connection = DriverManager.getConnection("jdbc:sqlite:javatower.db");
             Statement stmt = connection.createStatement();
             stmt.executeUpdate("CREATE TABLE IF NOT EXISTS meta_progression ("
@@ -41,6 +55,8 @@ public class DatabaseManager {
             if (isFirstRun) {
                 System.out.println("[JavaTower] Database created successfully!");
             }
+        } catch (ClassNotFoundException e) {
+            System.err.println("[JavaTower] SQLite driver not found: " + e.getMessage());
         } catch (SQLException e) {
             System.err.println("[JavaTower] Database error: " + e.getMessage());
             e.printStackTrace();

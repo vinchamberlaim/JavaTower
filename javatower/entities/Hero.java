@@ -13,62 +13,129 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Represents the player-controlled hero character.
+ * The player-controlled hero character.
+ * <p>
+ * The hero supports:
+ * <ul>
+ *   <li><b>Equipment</b> — 8 fixed slots (weapon, offhand, helmet, chest, legs,
+ *       boots, gloves, amulet) plus up to 10 ring slots.</li>
+ *   <li><b>Three skill trees</b> — Combat, Magic, and Utility, each with 10
+ *       branching nodes unlockable with skill points earned on level-up.</li>
+ *   <li><b>Weapon-class progression</b> — Melee, Ranged, Necromancy, Holy, and
+ *       Defence skills that level through use ({@link SkillProgression}).</li>
+ *   <li><b>Set bonuses</b> — Holy, Death, Fire, and Knight equipment sets that
+ *       activate at 2-piece and 4-piece thresholds via {@link SetBonusManager}.</li>
+ *   <li><b>Dodge/Roll</b> — a short invincibility dash bound to SHIFT.</li>
+ *   <li><b>Ultimate (RAGE)</b> — charged by dealing/taking damage; grants
+ *       +50 % ATK, +50 % DEF, +25 % crit for 10 s.</li>
+ * </ul>
+ * Movement is real-time: click-to-move or WASD/arrow-key continuous.
+ * </p>
+ *
+ * @author Vincent Chamberlain (2424309)
+ * @see Enemy
+ * @see SkillTree
+ * @see SkillProgression
+ * @see SetBonusManager
  */
 public class Hero extends Entity {
+    // ==================== Equipment Slots ====================
+    /** Currently equipped weapon (may be two-handed, blocking offhand). */
     private Item weapon, offhand, helmet, chest, legs, boots, gloves, amulet;
+    /** Up to 10 ring slots, each providing stat bonuses. */
     private Item[] rings = new Item[10];
 
+    // ==================== Progression ====================
+    /** Current hero level (starts at 1, uncapped). */
     private int level = 1;
+    /** Current XP toward the next level-up. */
     private int experience = 0;
+    /** XP threshold for the next level (grows by 20 % each level). */
     private int experienceToNextLevel = 100;
+    /** Current gold balance. */
     private int gold = 50;
+    /** Current mana pool. */
     private int mana = 50;
+    /** Base maximum mana (before equipment bonuses). */
     private int maxMana = 50;
+    /** Base crit chance percentage (before equipment/skill bonuses). */
     private int critChance = 5;
+    /** Unspent skill points (earned on level-up). */
     private int skillPoints = 0;
 
+    // ==================== Movement ====================
+    /** Base movement speed in pixels per second. */
     private double moveSpeed = Constants.HERO_SPEED;
+    /** Base seconds between auto-attacks. */
     private double attackCooldown = 0.6;
+    /** Accumulator tracking time since last auto-attack. */
     private double attackTimer = 0;
+    /** 1-second tick timer for passive HP/mana regeneration. */
     private double regenTimer = 0;
+    /** Click-to-move target X coordinate (world space). */
     private double targetX, targetY;
+    /** Whether the hero is currently moving toward the click target. */
     private boolean moving = false;
 
     private Inventory inventory;
     private SkillTree combatTree, magicTree, utilityTree;
     private SkillProgression skillProgression;
 
-    // Arrow-key continuous movement
+    // ==================== Arrow-key Continuous Movement ====================
+    /** Flags set by key-press / key-release events to enable WASD movement. */
     private boolean moveUp, moveDown, moveLeft, moveRight;
-    
-    // Ultimate ability state
+
+    // ==================== Ultimate Ability ====================
+    /** Whether the hero is currently in RAGE mode (+50 % ATK/DEF). */
     private boolean ultimateActive = false;
-    
-    // Dodge/Roll mechanics
+
+    // ==================== Dodge / Roll ====================
+    /** True while the hero is mid-roll (invincible). */
     private boolean isRolling = false;
+    /** Remaining time in the current roll (seconds). */
     private double rollTimer = 0;
-    private double rollDuration = 0.35; // 350ms roll
-    private double rollCooldown = 1.5;  // 1.5s cooldown
+    /** Total roll duration in seconds. */
+    private double rollDuration = 0.35;
+    /** Cooldown between rolls in seconds. */
+    private double rollCooldown = 1.5;
+    /** Remaining cooldown before the next roll can start. */
     private double rollCooldownTimer = 0;
-    private double rollSpeed = 3.0;     // 3x speed during roll
+    /** Speed multiplier during a roll (3× normal). */
+    private double rollSpeed = 3.0;
+    /** Normalised roll direction vector components. */
     private double rollDirectionX = 0;
     private double rollDirectionY = 0;
 
-    // Kill stats
+    // ==================== Lifetime Kill Stats ====================
+    /** Total enemies killed this run. */
     private int totalKills = 0;
+    /** Cumulative damage dealt this run. */
     private int totalDamageDealt = 0;
+    /** Cumulative gold earned this run. */
     private int totalGoldEarned = 0;
+    /** Cumulative XP earned this run. */
     private int totalXPEarned = 0;
 
-    // Last attack result (for visual effect spawning)
+    // ==================== Per-frame Attack Result Cache ====================
+    /** Damage dealt by the most recent auto-attack (for floating numbers). */
     private int lastDamageDealt;
+    /** Whether the last attack was a critical hit. */
     private boolean lastAttackCrit;
+    /** Weapon class used in the last attack (for visual effect selection). */
     private WeaponClass lastAttackWeaponClass = WeaponClass.MELEE;
+    /** The enemy targeted by the last auto-attack. */
     private Enemy lastAttackTarget;
+    /** Flag set for exactly one frame after an auto-attack lands. */
     private boolean attackedThisFrame;
+    /** Flag set for exactly one frame after the hero levels up. */
     private boolean leveledUpThisFrame;
 
+    /**
+     * Constructs a new hero with default base stats and initialises
+     * the three skill trees (Combat, Magic, Utility).
+     *
+     * @param name the hero’s display name
+     */
     public Hero(String name) {
         setName(name);
         setMaxHealth(100);
@@ -84,46 +151,108 @@ public class Hero extends Entity {
 
     /**
      * Initializes the three skill trees with branching nodes.
+     * Costs: Tier 1 = 1pt, Tier 2 = 1pt, Tier 3 = 2pt, Tier 4 = 2pt, Tier 5 = 4pt
+     * Bigger trees with more choices and special passives!
      */
     private void initSkillTrees() {
-        // --- COMBAT TREE ---
+        // ========== COMBAT TREE (10 nodes) ==========
         combatTree = new SkillTree("Combat");
-        combatTree.addNode(new javatower.systems.SkillNode("c1", "Sharpen", "+3 Attack", "combat", 1,
-                null, Map.of("attack", 3), null));
-        combatTree.addNode(new javatower.systems.SkillNode("c2", "Precision", "+5% Crit", "combat", 1,
-                java.util.List.of("c1"), Map.of("critChance", 5), null));
-        combatTree.addNode(new javatower.systems.SkillNode("c3", "Berserker", "+5 ATK, +10 HP", "combat", 2,
-                java.util.List.of("c2"), Map.of("attack", 5, "maxHealth", 10), null));
-        combatTree.addNode(new javatower.systems.SkillNode("c4", "Lethal Strike", "+8% Crit", "combat", 2,
-                java.util.List.of("c2"), Map.of("critChance", 8), null));
-        combatTree.addNode(new javatower.systems.SkillNode("c5", "Warlord", "+8 ATK, +5 DEF", "combat", 3,
-                java.util.List.of("c3", "c4"), Map.of("attack", 8, "defence", 5), null));
+        
+        // Tier 1 - Basics
+        combatTree.addNode(new javatower.systems.SkillNode("c1", "Sharpen", "⚔️ +4 Attack", "combat", 1,
+                null, Map.of("attack", 4), null));
+        
+        // Tier 2 - Branching
+        combatTree.addNode(new javatower.systems.SkillNode("c2a", "Precision", "🎯 +6% Crit", "combat", 1,
+                java.util.List.of("c1"), Map.of("critChance", 6), null));
+        combatTree.addNode(new javatower.systems.SkillNode("c2b", "Power Strike", "💪 +6 Attack", "combat", 1,
+                java.util.List.of("c1"), Map.of("attack", 6), null));
+        
+        // Tier 3 - Specialization
+        combatTree.addNode(new javatower.systems.SkillNode("c3a", "Berserker", "🔥 +8 ATK, +15 HP, +5 Speed", "combat", 2,
+                java.util.List.of("c2a"), Map.of("attack", 8, "maxHealth", 15), null));
+        combatTree.addNode(new javatower.systems.SkillNode("c3b", "Assassin", "🗡️ +10% Crit, +4 ATK", "combat", 2,
+                java.util.List.of("c2a"), Map.of("critChance", 10, "attack", 4), null));
+        combatTree.addNode(new javatower.systems.SkillNode("c3c", "Brawler", "👊 +6 ATK, +8 DEF, +20 HP", "combat", 2,
+                java.util.List.of("c2b"), Map.of("attack", 6, "defence", 8, "maxHealth", 20), null));
+        combatTree.addNode(new javatower.systems.SkillNode("c3d", "Weapon Master", "⚔️ +10 Attack", "combat", 2,
+                java.util.List.of("c2b"), Map.of("attack", 10), null));
+        
+        // Tier 4 - Advanced
+        combatTree.addNode(new javatower.systems.SkillNode("c4a", "Frenzy", "🔥🔥 +12 ATK, +10% Speed", "combat", 2,
+                java.util.List.of("c3a", "c3b"), Map.of("attack", 12, "speed", 10), null));
+        combatTree.addNode(new javatower.systems.SkillNode("c4b", "Executioner", "💀 +5% Crit, +6 ATK", "combat", 2,
+                java.util.List.of("c3b", "c3d"), Map.of("critChance", 5, "attack", 6), null));
+        
+        // Tier 5 - Ultimate
+        combatTree.addNode(new javatower.systems.SkillNode("c5", "Warlord", "👑 +10 ATK, +8 DEF, +25 HP", "combat", 4,
+                java.util.List.of("c4a", "c4b"), Map.of("attack", 10, "defence", 8, "maxHealth", 25), null));
 
-        // --- MAGIC TREE ---
+        // ========== MAGIC TREE (10 nodes) ==========
         magicTree = new SkillTree("Magic");
-        magicTree.addNode(new javatower.systems.SkillNode("m1", "Arcane Mind", "+15 Mana", "magic", 1,
-                null, Map.of("maxMana", 15), null));
-        magicTree.addNode(new javatower.systems.SkillNode("m2", "Inner Light", "+20 HP", "magic", 1,
-                java.util.List.of("m1"), Map.of("maxHealth", 20), null));
-        magicTree.addNode(new javatower.systems.SkillNode("m3", "Mana Surge", "+25 Mana", "magic", 2,
-                java.util.List.of("m1"), Map.of("maxMana", 25), null));
-        magicTree.addNode(new javatower.systems.SkillNode("m4", "Healing Aura", "+30 HP", "magic", 2,
-                java.util.List.of("m2"), Map.of("maxHealth", 30), null));
-        magicTree.addNode(new javatower.systems.SkillNode("m5", "Archmage", "+20 Mana, +20 HP", "magic", 3,
-                java.util.List.of("m3", "m4"), Map.of("maxMana", 20, "maxHealth", 20), null));
+        
+        // Tier 1
+        magicTree.addNode(new javatower.systems.SkillNode("m1", "Arcane Mind", "🔮 +20 Mana", "magic", 1,
+                null, Map.of("maxMana", 20), null));
+        
+        // Tier 2
+        magicTree.addNode(new javatower.systems.SkillNode("m2a", "Inner Light", "✨ +25 HP", "magic", 1,
+                java.util.List.of("m1"), Map.of("maxHealth", 25), null));
+        magicTree.addNode(new javatower.systems.SkillNode("m2b", "Mana Flow", "💧 +15 Mana, +5 HP", "magic", 1,
+                java.util.List.of("m1"), Map.of("maxMana", 15, "maxHealth", 5), null));
+        
+        // Tier 3
+        magicTree.addNode(new javatower.systems.SkillNode("m3a", "Healing Aura", "💚 +35 HP, +10 Mana", "magic", 2,
+                java.util.List.of("m2a"), Map.of("maxHealth", 35, "maxMana", 10), null));
+        magicTree.addNode(new javatower.systems.SkillNode("m3b", "Protective Ward", "🛡️ +20 HP, +5 DEF", "magic", 2,
+                java.util.List.of("m2a"), Map.of("maxHealth", 20, "defence", 5), null));
+        magicTree.addNode(new javatower.systems.SkillNode("m3c", "Mana Surge", "⚡ +30 Mana", "magic", 2,
+                java.util.List.of("m2b"), Map.of("maxMana", 30), null));
+        magicTree.addNode(new javatower.systems.SkillNode("m3d", "Spell Focus", "🔥 +10 Mana, Abilities cost 10% less", "magic", 2,
+                java.util.List.of("m2b"), Map.of("maxMana", 10), null));
+        
+        // Tier 4
+        magicTree.addNode(new javatower.systems.SkillNode("m4a", "Saint", "✨✨ +30 HP, +20 Mana", "magic", 2,
+                java.util.List.of("m3a", "m3b"), Map.of("maxHealth", 30, "maxMana", 20), null));
+        magicTree.addNode(new javatower.systems.SkillNode("m4b", "Sorcerer", "🔮🔮 +40 Mana, +5% Damage", "magic", 2,
+                java.util.List.of("m3c", "m3d"), Map.of("maxMana", 40, "attack", 2), null));
+        
+        // Tier 5
+        magicTree.addNode(new javatower.systems.SkillNode("m5", "Archmage", "🌟 +25 Mana, +25 HP, +10 Attack", "magic", 4,
+                java.util.List.of("m4a", "m4b"), Map.of("maxMana", 25, "maxHealth", 25, "attack", 10), null));
 
-        // --- UTILITY TREE ---
+        // ========== UTILITY TREE (10 nodes) ==========
         utilityTree = new SkillTree("Utility");
-        utilityTree.addNode(new javatower.systems.SkillNode("u1", "Thick Skin", "+4 DEF", "utility", 1,
-                null, Map.of("defence", 4), null));
-        utilityTree.addNode(new javatower.systems.SkillNode("u2", "Fleet Foot", "+15 Speed", "utility", 1,
-                java.util.List.of("u1"), Map.of("speed", 15), null));
-        utilityTree.addNode(new javatower.systems.SkillNode("u3", "Iron Wall", "+6 DEF, +15 HP", "utility", 2,
-                java.util.List.of("u1"), Map.of("defence", 6, "maxHealth", 15), null));
-        utilityTree.addNode(new javatower.systems.SkillNode("u4", "Nimble", "+10% Crit, +10 Speed", "utility", 2,
-                java.util.List.of("u2"), Map.of("critChance", 10, "speed", 10), null));
-        utilityTree.addNode(new javatower.systems.SkillNode("u5", "Survivor", "+8 DEF, +25 HP", "utility", 3,
-                java.util.List.of("u3", "u4"), Map.of("defence", 8, "maxHealth", 25), null));
+        
+        // Tier 1
+        utilityTree.addNode(new javatower.systems.SkillNode("u1", "Vitality", "❤️ +25 HP", "utility", 1,
+                null, Map.of("maxHealth", 25), null));
+        
+        // Tier 2
+        utilityTree.addNode(new javatower.systems.SkillNode("u2a", "Thick Skin", "🛡️ +5 DEF", "utility", 1,
+                java.util.List.of("u1"), Map.of("defence", 5), null));
+        utilityTree.addNode(new javatower.systems.SkillNode("u2b", "Swiftness", "💨 +20 Speed", "utility", 1,
+                java.util.List.of("u1"), Map.of("speed", 20), null));
+        
+        // Tier 3
+        utilityTree.addNode(new javatower.systems.SkillNode("u3a", "Iron Wall", "🏰 +8 DEF, +15 HP", "utility", 2,
+                java.util.List.of("u2a"), Map.of("defence", 8, "maxHealth", 15), null));
+        utilityTree.addNode(new javatower.systems.SkillNode("u3b", "Fortress", "🏯 +5 DEF, +15 HP", "utility", 2,
+                java.util.List.of("u2a"), Map.of("defence", 5, "maxHealth", 15), null));
+        utilityTree.addNode(new javatower.systems.SkillNode("u3c", "Agility", "🤸 +25 Speed, +5% Crit", "utility", 2,
+                java.util.List.of("u2b"), Map.of("speed", 25, "critChance", 5), null));
+        utilityTree.addNode(new javatower.systems.SkillNode("u3d", "Evasion", "💫 +15 Speed, +5% Dodge", "utility", 2,
+                java.util.List.of("u2b"), Map.of("speed", 15, "critChance", 5), null));
+        
+        // Tier 4
+        utilityTree.addNode(new javatower.systems.SkillNode("u4a", "Juggernaut", "🐢 +10 DEF, +30 HP", "utility", 2,
+                java.util.List.of("u3a", "u3b"), Map.of("defence", 10, "maxHealth", 30), null));
+        utilityTree.addNode(new javatower.systems.SkillNode("u4b", "Wind Walker", "🌪️ +30 Speed, +10 Mana", "utility", 2,
+                java.util.List.of("u3c", "u3d"), Map.of("speed", 30, "maxMana", 10), null));
+        
+        // Tier 5
+        utilityTree.addNode(new javatower.systems.SkillNode("u5", "Legend", "⭐ +8 DEF, +30 HP", "utility", 4,
+                java.util.List.of("u4a", "u4b"), Map.of("defence", 8, "maxHealth", 30), null));
     }
 
     @Override
@@ -149,8 +278,8 @@ public class Hero extends Entity {
             } else {
                 // Continue rolling in direction
                 double step = moveSpeed * rollSpeed * dt;
-                double newX = Math.max(getRadius(), Math.min(Constants.SCREEN_WIDTH - getRadius(), getX() + rollDirectionX * step));
-                double newY = Math.max(getRadius(), Math.min(Constants.SCREEN_HEIGHT - getRadius(), getY() + rollDirectionY * step));
+                double newX = Math.max(getRadius(), Math.min(Constants.WORLD_WIDTH - getRadius(), getX() + rollDirectionX * step));
+                double newY = Math.max(getRadius(), Math.min(Constants.WORLD_HEIGHT - getRadius(), getY() + rollDirectionY * step));
                 setPosition(newX, newY);
             }
             return; // Skip normal movement/attacks while rolling
@@ -170,8 +299,8 @@ public class Hero extends Entity {
                 if (step > dist) step = dist;
                 double nx = dx / dist;
                 double ny = dy / dist;
-                double newX = Math.max(getRadius(), Math.min(Constants.SCREEN_WIDTH - getRadius(), getX() + nx * step));
-                double newY = Math.max(getRadius(), Math.min(Constants.SCREEN_HEIGHT - getRadius(), getY() + ny * step));
+                double newX = Math.max(getRadius(), Math.min(Constants.WORLD_WIDTH - getRadius(), getX() + nx * step));
+                double newY = Math.max(getRadius(), Math.min(Constants.WORLD_HEIGHT - getRadius(), getY() + ny * step));
                 setPosition(newX, newY);
             }
         }
@@ -189,8 +318,8 @@ public class Hero extends Entity {
                 adx /= alen;
                 ady /= alen;
                 double step = (moveSpeed + getEquipmentStat("moveSpeed")) * dt;
-                double newX = Math.max(getRadius(), Math.min(Constants.SCREEN_WIDTH - getRadius(), getX() + adx * step));
-                double newY = Math.max(getRadius(), Math.min(Constants.SCREEN_HEIGHT - getRadius(), getY() + ady * step));
+                double newX = Math.max(getRadius(), Math.min(Constants.WORLD_WIDTH - getRadius(), getX() + adx * step));
+                double newY = Math.max(getRadius(), Math.min(Constants.WORLD_HEIGHT - getRadius(), getY() + ady * step));
                 setPosition(newX, newY);
             }
         }
@@ -263,6 +392,16 @@ public class Hero extends Entity {
         this.moving = true;
     }
 
+    /**
+     * Calculates and performs an auto-attack on the target enemy.
+     * <p>
+     * Applies weapon-class skill multiplier, set bonuses (Fire 2pc, Holy 4pc),
+     * crit chance, Death 4pc life-steal, and trains the relevant weapon skill.
+     * </p>
+     *
+     * @param target the enemy to strike
+     * @return actual damage dealt after all modifiers
+     */
     public int attackEnemy(Enemy target) {
         int baseDamage = getEffectiveAttack();
         // Apply weapon class skill modifier

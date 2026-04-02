@@ -12,6 +12,8 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.Priority;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javatower.entities.*;
@@ -29,7 +31,31 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- * Main JavaFX application window — real-time game loop with AnimationTimer.
+ * Main JavaFX {@link Application} — owns the primary stage, game loop, and
+ * all scene transitions (main menu, gameplay, shop, inventory, forge,
+ * skill tree, pause, game-over).
+ * <p>
+ * The real-time game loop is driven by an {@link AnimationTimer} that calls
+ * {@link #gameUpdate(double)} (simulation) and {@link #renderBoard()}
+ * (rendering) every frame at ~60 FPS.
+ * </p>
+ * <h3>Keyboard Hotkeys</h3>
+ * <ul>
+ *   <li><b>1–4</b> — place Arrow / Magic / Siege / Support tower</li>
+ *   <li><b>Q</b> — melee AoE skill (15 mana)</li>
+ *   <li><b>W</b> — ranged AoE blast (25 mana)</li>
+ *   <li><b>E</b> — self-heal 30 % HP (20 mana)</li>
+ *   <li><b>R</b> — tower boost ×2 damage for 5 s (25 mana)</li>
+ *   <li><b>SHIFT</b> — dodge-roll (invincible dash)</li>
+ *   <li><b>F</b> — ultimate RAGE mode (requires full meter)</li>
+ *   <li><b>S</b> — sell selected tower (double-press to confirm)</li>
+ *   <li><b>TAB</b> — open shop | <b>ESC</b> — pause | <b>M</b> — mini-map</li>
+ * </ul>
+ *
+ * @author Vincent Chamberlain (2424309)
+ * @author Nicolas Alfaro (2301126)
+ * @author Emmanuel Adewumi (2507044)
+ * @version 2.0 — CIS096-1 Assessment 2
  */
 public class GameGUI extends Application {
     private Stage primaryStage;
@@ -40,42 +66,61 @@ public class GameGUI extends Application {
     private Shop shop;
     private List<Tower> towers;
     private GameState gameState;
+    /** The 60-FPS {@link AnimationTimer} that drives the game loop. */
     private AnimationTimer gameLoop;
+    /** Nanosecond timestamp of the previous frame (for delta-time calculation). */
     private long lastNanoTime;
 
-    // Wave transition
+    // ==================== Wave Transition ====================
+    /** Countdown timer for the inter-wave delay (seconds remaining). */
     private double waveDelayTimer = 0;
+    /** Flag indicating we are between waves, showing a countdown. */
     private boolean waitingForNextWave = false;
 
-    // Tower placement mode
+    // ==================== Tower Placement ====================
+    /** The tower type the player is about to place (null = not placing). */
     private TowerType pendingTowerType = null;
-
-    // Selected tower for upgrading
+    /** The tower currently selected for upgrade / sell actions. */
     private Tower selectedTower = null;
 
-    // Tower boost tracking
+    // ==================== Tower Boost Tracking ====================
+    /** Remaining duration of the R-key tower boost buff (seconds). */
     private double towerBoostTimer = 0;
+    /** Towers receiving the boost (so original damage can be restored). */
     private List<Tower> boostedTowers = new ArrayList<>();
+    /** Original damage values before boost was applied. */
     private List<Integer> boostedOriginalDamage = new ArrayList<>();
 
-    // Bone piles from dead enemies
+    // ==================== Bone Piles ====================
+    /** Bone piles dropped by dead enemies — shared with enemies for consumption. */
     private List<BonePile> bonePiles = new ArrayList<>();
 
-    // Ability cooldown timers (#52)
+    // ==================== Ability Cooldown Timers ====================
+    /** Remaining cooldown for Q skill (melee AoE). */
     private double skillCooldownTimer = 0;
+    /** Remaining cooldown for W skill (ranged AoE). */
     private double specialCooldownTimer = 0;
+    /** Remaining cooldown for E skill (self-heal). */
     private double healCooldownTimer = 0;
+    /** Maximum cooldown for Q skill in seconds. */
     private static final double SKILL_COOLDOWN = 1.5;
+    /** Maximum cooldown for W skill in seconds. */
     private static final double SPECIAL_COOLDOWN = 3.0;
+    /** Maximum cooldown for E skill in seconds. */
     private static final double HEAL_COOLDOWN = 4.0;
+    /** Maximum cooldown for R skill in seconds. */
     private static final double BOOST_COOLDOWN = 5.0;
 
-    // Run timer (#75)
+    // ==================== Run Timer ====================
+    /** Elapsed real time since the run started (seconds). */
     private double runTime = 0;
 
-    // Tower sell confirmation (#40) - requires double-press S within 2 seconds
+    // ==================== Tower Sell Confirmation ====================
+    /** Whether a sell confirmation prompt is active (double-press S). */
     private boolean sellPending = false;
+    /** Countdown timer for the sell-confirm window. */
     private double sellConfirmTimer = 0;
+    /** How long the player has to press S again to confirm a sell. */
     private static final double SELL_CONFIRM_WINDOW = 2.0;
 
     // Panels
@@ -196,85 +241,27 @@ public class GameGUI extends Application {
         waveInfoPanel = new WaveInfoPanel(waveManager);
         combatLogPanel = new CombatLogPanel();
 
-        VBox rightPanel = new VBox(10);
-        rightPanel.setPadding(new Insets(10));
-        rightPanel.setStyle("-fx-background-color: #16213e;");
-        rightPanel.setPrefWidth(280);
+        // ===== NEW COMPACT LAYOUT =====
+        // Right panel: Stats (narrower)
+        VBox rightPanel = new VBox(8);
+        rightPanel.setPadding(new Insets(8));
+        rightPanel.setStyle("-fx-background-color: #0d1b2a; -fx-border-color: #1b263b; -fx-border-width: 0 0 0 2;");
+        rightPanel.setPrefWidth(220);
+        rightPanel.setMinWidth(200);
         rightPanel.getChildren().addAll(heroPanel, waveInfoPanel, combatLogPanel);
 
-        // ===== LEFT SIDEBAR WITH CLICKABLE ICONS =====
-        VBox leftSidebar = new VBox(5);
-        leftSidebar.setPadding(new Insets(8));
-        leftSidebar.setStyle("-fx-background-color: #0f3460; -fx-border-color: #1a1a2e; -fx-border-width: 0 2 0 0;");
-        leftSidebar.setPrefWidth(200);
-        leftSidebar.setMinWidth(180);
-        
-        // Section: TOWERS
-        Label towerLabel = createSectionLabel("🛡️ TOWERS");
-        Button arrowTowerBtn = createSidebarButton("🏹 Arrow", "1", "#48bb78");
-        arrowTowerBtn.setOnAction(e -> setTowerPlacementMode(TowerType.ARROW));
-        Button magicTowerBtn = createSidebarButton("✨ Magic", "2", "#9f7aea");
-        magicTowerBtn.setOnAction(e -> setTowerPlacementMode(TowerType.MAGIC));
-        Button siegeTowerBtn = createSidebarButton("💥 Siege", "3", "#f56565");
-        siegeTowerBtn.setOnAction(e -> setTowerPlacementMode(TowerType.SIEGE));
-        Button supportTowerBtn = createSidebarButton("💚 Support", "4", "#4fd1c5");
-        supportTowerBtn.setOnAction(e -> setTowerPlacementMode(TowerType.SUPPORT));
-        Button upgradeTowerBtn = createSidebarButton("⬆️ Upgrade", "T", "#ed8936");
-        upgradeTowerBtn.setOnAction(e -> upgradeTower());
-        Button sellTowerBtn = createSidebarButton("💰 Sell", "S", "#a0aec0");
-        sellTowerBtn.setOnAction(e -> sellTower());
-        
-        leftSidebar.getChildren().addAll(towerLabel, arrowTowerBtn, magicTowerBtn, siegeTowerBtn, 
-                supportTowerBtn, upgradeTowerBtn, sellTowerBtn);
-        
-        // Separator
-        leftSidebar.getChildren().add(createSeparator());
-        
-        // Section: ABILITIES
-        Label abilityLabel = createSectionLabel("⚔️ ABILITIES");
-        Button slashBtn = createSidebarButton("⚔️ Slash", "Q", "#e94560");
-        slashBtn.setOnAction(e -> useSkill());
-        Button novaBtn = createSidebarButton("🔥 Nova", "W", "#dd6b20");
-        novaBtn.setOnAction(e -> useSpecialAbility());
-        Button healBtn = createSidebarButton("💗 Heal", "E", "#48bb78");
-        healBtn.setOnAction(e -> selfHeal());
-        Button boostBtn = createSidebarButton("⚡ Boost", "R", "#ecc94b");
-        boostBtn.setOnAction(e -> towerBoost());
-        Button rollBtn = createSidebarButton("💨 Roll", "SHIFT", "#63b3ed");
-        rollBtn.setOnAction(e -> hero.rollInMovementDirection());
-        Button ultimateBtn = createSidebarButton("🔥 RAGE", "F", "#dc2626");
-        ultimateBtn.setStyle("-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-size: 16; -fx-font-weight: bold; -fx-cursor: hand; -fx-padding: 12; -fx-pref-width: 180;");
-        ultimateBtn.setOnAction(e -> useUltimateAbility());
-        
-        leftSidebar.getChildren().addAll(abilityLabel, slashBtn, novaBtn, healBtn, boostBtn, rollBtn, ultimateBtn);
-        
-        // Separator
-        leftSidebar.getChildren().add(createSeparator());
-        
-        // Section: MENU
-        Label menuLabel = createSectionLabel("☰ MENU");
-        Button shopBtn = createSidebarButton("🛒 Shop", "TAB", "#533483");
-        shopBtn.setOnAction(e -> showShop());
-        Button skillTreeBtn = createSidebarButton("🌳 Skills", "", "#38a169");
-        skillTreeBtn.setOnAction(e -> showSkillTree());
-        Button inventoryBtn = createSidebarButton("🎒 Items", "", "#3182ce");
-        inventoryBtn.setOnAction(e -> showInventory());
-        Button forgeBtn = createSidebarButton("🔨 Forge", "", "#d69e2e");
-        forgeBtn.setOnAction(e -> showForge());
-        Button mapBtn = createSidebarButton("🗺️ Map", "M", "#718096");
-        mapBtn.setOnAction(e -> gameBoard.getMiniMap().toggle());
-        Button pauseBtn = createSidebarButton("⏸️ Pause", "ESC", "#4a5568");
-        pauseBtn.setOnAction(e -> togglePause());
-        Button fullscreenBtn = createSidebarButton("🖥️ Fullscreen", "F11", "#2d3748");
-        fullscreenBtn.setOnAction(e -> toggleFullscreen());
-        
-        leftSidebar.getChildren().addAll(menuLabel, shopBtn, skillTreeBtn, inventoryBtn, forgeBtn, mapBtn, pauseBtn, fullscreenBtn);
+        // Bottom bar: Abilities + Towers (like MOBA games)
+        HBox bottomBar = createBottomActionBar();
+
+        // Top bar: Menu buttons (compact)
+        HBox topBar = createTopMenuBar();
 
         BorderPane root = new BorderPane();
         root.setCenter(gameBoard);
         root.setRight(rightPanel);
-        root.setLeft(leftSidebar);
-        root.setStyle("-fx-background-color: #1a1a2e;");
+        root.setBottom(bottomBar);
+        root.setTop(topBar);
+        root.setStyle("-fx-background-color: #0d1b2a;");
 
         currentScene = new Scene(root);
         
@@ -625,28 +612,9 @@ public class GameGUI extends Application {
                 showGameOver(true);
                 return;
             }
-            waitingForNextWave = true;
-            waveDelayTimer = 0;
-            // Start countdown timer in UI
-            if (waveInfoPanel != null) {
-                waveInfoPanel.startCountdown(Constants.WAVE_DELAY);
-            }
-        }
-
-        if (waitingForNextWave) {
-            waveDelayTimer += dt;
-            // Update countdown UI
-            if (waveInfoPanel != null) {
-                waveInfoPanel.updateCountdown(dt);
-            }
-            if (waveDelayTimer >= Constants.WAVE_DELAY) {
-                waitingForNextWave = false;
-                if (waveInfoPanel != null) {
-                    waveInfoPanel.stopCountdown();
-                }
-                waveManager.nextWave();
-                startWave();
-            }
+            waitingForNextWave = false;
+            waveManager.nextWave();
+            startWave();
         }
 
         // Refresh panels every few frames (reduce label thrashing)
@@ -657,10 +625,15 @@ public class GameGUI extends Application {
 
     private void handleBoardClick(double screenX, double screenY) {
         if (gameState != GameState.PLAYING) return;
+        
+        // Convert screen coordinates to world coordinates (account for camera)
+        double[] worldCoords = gameBoard.screenToWorld(screenX, screenY);
+        double worldX = worldCoords[0];
+        double worldY = worldCoords[1];
 
         // Tower placement mode
         if (pendingTowerType != null) {
-            int[] grid = gameBoard.screenToTowerGrid(screenX, screenY);
+            int[] grid = gameBoard.screenToTowerGrid(worldX, worldY);
             placeTower(pendingTowerType, grid[0], grid[1]);
             pendingTowerType = null;
             gameBoard.clearPendingTowerType();
@@ -669,7 +642,7 @@ public class GameGUI extends Application {
 
         // Check if clicking on an existing tower → select or cycle targeting mode (#31)
         for (Tower t : towers) {
-            if (Math.abs(t.getX() - screenX) < 32 && Math.abs(t.getY() - screenY) < 32) {
+            if (Math.abs(t.getX() - worldX) < 32 && Math.abs(t.getY() - worldY) < 32) {
                 if (t == selectedTower) {
                     // Already selected — cycle targeting mode
                     t.cycleTargetMode();
@@ -681,8 +654,8 @@ public class GameGUI extends Application {
         }
         selectedTower = null;
 
-        // Click = move hero to that position
-        hero.moveTo(screenX, screenY);
+        // Click = move hero to that position (in world coordinates)
+        hero.moveTo(worldX, worldY);
     }
 
     /**
@@ -1160,6 +1133,176 @@ public class GameGUI extends Application {
         return btn;
     }
     
+    /**
+     * Creates the bottom action bar with abilities and towers.
+     */
+    private HBox createBottomActionBar() {
+        HBox bottomBar = new HBox(12);
+        bottomBar.setPadding(new Insets(10, 15, 20, 15));
+        bottomBar.setStyle("-fx-background-color: #0d1b2a; -fx-border-color: #1b263b; -fx-border-width: 2 0 0 0;");
+        bottomBar.setAlignment(Pos.CENTER);
+        bottomBar.setPrefHeight(90);
+        bottomBar.setMaxHeight(90);
+
+        // Left: Tower buttons
+        VBox towerSection = new VBox(4);
+        towerSection.setAlignment(Pos.CENTER);
+        Label towerLabel = new Label("🏰 TOWERS");
+        towerLabel.setFont(Font.font("Monospaced", FontWeight.BOLD, 11));
+        towerLabel.setStyle("-fx-text-fill: #778da9;");
+        
+        HBox towerBtns = new HBox(6);
+        towerBtns.setAlignment(Pos.CENTER);
+        towerBtns.getChildren().addAll(
+            createActionIcon("🏹", "1", "#48bb78", () -> setTowerPlacementMode(TowerType.ARROW)),
+            createActionIcon("✨", "2", "#9f7aea", () -> setTowerPlacementMode(TowerType.MAGIC)),
+            createActionIcon("💥", "3", "#f56565", () -> setTowerPlacementMode(TowerType.SIEGE)),
+            createActionIcon("💚", "4", "#4fd1c5", () -> setTowerPlacementMode(TowerType.SUPPORT))
+        );
+        towerSection.getChildren().addAll(towerLabel, towerBtns);
+
+        // Center: Ability buttons (with cooldown indicators)
+        VBox abilitySection = new VBox(4);
+        abilitySection.setAlignment(Pos.CENTER);
+        Label abilityLabel = new Label("⚔️ ABILITIES");
+        abilityLabel.setFont(Font.font("Monospaced", FontWeight.BOLD, 11));
+        abilityLabel.setStyle("-fx-text-fill: #778da9;");
+        
+        HBox abilityBtns = new HBox(8);
+        abilityBtns.setAlignment(Pos.CENTER);
+        abilityBtns.getChildren().addAll(
+            createAbilityButton("⚔️", "Q", "#e94560", 15),
+            createAbilityButton("🔥", "W", "#dd6b20", 25),
+            createAbilityButton("💗", "E", "#48bb78", 20),
+            createAbilityButton("⚡", "R", "#ecc94b", 25)
+        );
+        abilitySection.getChildren().addAll(abilityLabel, abilityBtns);
+
+        // Right: Special actions
+        VBox specialSection = new VBox(4);
+        specialSection.setAlignment(Pos.CENTER);
+        Label specialLabel = new Label("💨 SPECIAL");
+        specialLabel.setFont(Font.font("Monospaced", FontWeight.BOLD, 11));
+        specialLabel.setStyle("-fx-text-fill: #778da9;");
+        
+        HBox specialBtns = new HBox(6);
+        specialBtns.setAlignment(Pos.CENTER);
+        
+        // Ultimate button (bigger)
+        Button ultBtn = new Button("🔥 F");
+        ultBtn.setFont(Font.font("Segoe UI Emoji", 14));
+        ultBtn.setStyle("-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand; -fx-padding: 8 12; -fx-min-width: 50;");
+        ultBtn.setOnAction(e -> useUltimateAbility());
+        
+        // Roll button
+        Button rollBtn = new Button("💨 SHIFT");
+        rollBtn.setFont(Font.font("Segoe UI Emoji", 12));
+        rollBtn.setStyle("-fx-background-color: #63b3ed; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand; -fx-padding: 8 8;");
+        rollBtn.setOnAction(e -> hero.rollInMovementDirection());
+        
+        specialBtns.getChildren().addAll(ultBtn, rollBtn);
+        specialSection.getChildren().addAll(specialLabel, specialBtns);
+
+        // Utility: Sell/Upgrade
+        VBox utilSection = new VBox(4);
+        utilSection.setAlignment(Pos.CENTER);
+        Label utilLabel = new Label("🔧 UTIL");
+        utilLabel.setFont(Font.font("Monospaced", FontWeight.BOLD, 11));
+        utilLabel.setStyle("-fx-text-fill: #778da9;");
+        
+        HBox utilBtns = new HBox(6);
+        utilBtns.setAlignment(Pos.CENTER);
+        Button upBtn = createSmallBtn("⬆️ T", () -> upgradeTower());
+        Button sellBtn = createSmallBtn("💰 S", () -> sellTower());
+        utilBtns.getChildren().addAll(upBtn, sellBtn);
+        utilSection.getChildren().addAll(utilLabel, utilBtns);
+
+        bottomBar.getChildren().addAll(towerSection, new javafx.scene.control.Separator(javafx.geometry.Orientation.VERTICAL), 
+                abilitySection, new javafx.scene.control.Separator(javafx.geometry.Orientation.VERTICAL),
+                specialSection, new javafx.scene.control.Separator(javafx.geometry.Orientation.VERTICAL),
+                utilSection);
+        
+        HBox.setHgrow(abilitySection, Priority.ALWAYS);
+        return bottomBar;
+    }
+
+    /**
+     * Creates the top menu bar.
+     */
+    private HBox createTopMenuBar() {
+        HBox topBar = new HBox(10);
+        topBar.setPadding(new Insets(8, 15, 8, 15));
+        topBar.setStyle("-fx-background-color: #0d1b2a; -fx-border-color: #1b263b; -fx-border-width: 0 0 2 0;");
+        topBar.setAlignment(Pos.CENTER_LEFT);
+        topBar.setPrefHeight(50);
+
+        // Title
+        Label title = new Label("⚔️ JavaTower");
+        title.setFont(Font.font("Monospaced", FontWeight.BOLD, 18));
+        title.setStyle("-fx-text-fill: #e94560;");
+
+        // Spacer
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        // Menu buttons
+        HBox menuBtns = new HBox(8);
+        menuBtns.setAlignment(Pos.CENTER_RIGHT);
+        menuBtns.getChildren().addAll(
+            createTopBtn("🛒 Shop", () -> showShop()),
+            createTopBtn("🎒 Items", () -> showInventory()),
+            createTopBtn("🌳 Skills", () -> showSkillTree()),
+            createTopBtn("🔨 Forge", () -> showForge()),
+            createTopBtn("🗺️ Map", () -> gameBoard.getMiniMap().toggle()),
+            createTopBtn("⏸️ Pause", () -> togglePause()),
+            createTopBtn("🖥️ Full", () -> toggleFullscreen())
+        );
+
+        topBar.getChildren().addAll(title, spacer, menuBtns);
+        return topBar;
+    }
+
+    private Button createActionIcon(String icon, String hotkey, String color, Runnable action) {
+        Button btn = new Button(icon);
+        btn.setFont(Font.font("Segoe UI Emoji", 18));
+        btn.setStyle("-fx-background-color: " + color + "; -fx-text-fill: white; -fx-cursor: hand; -fx-padding: 6 10; -fx-min-width: 45; -fx-min-height: 45;");
+        btn.setOnAction(e -> action.run());
+        return btn;
+    }
+
+    private Button createAbilityButton(String icon, String hotkey, String color, int manaCost) {
+        Button btn = new Button(icon + "\n" + hotkey);
+        btn.setFont(Font.font("Segoe UI Emoji", 14));
+        btn.setStyle("-fx-background-color: " + color + "; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand; -fx-padding: 4; -fx-min-width: 50; -fx-min-height: 50;");
+        btn.setOnAction(e -> {
+            switch(hotkey) {
+                case "Q": useSkill(); break;
+                case "W": useSpecialAbility(); break;
+                case "E": selfHeal(); break;
+                case "R": towerBoost(); break;
+            }
+        });
+        return btn;
+    }
+
+    private Button createSmallBtn(String text, Runnable action) {
+        Button btn = new Button(text);
+        btn.setFont(Font.font("Segoe UI Emoji", 11));
+        btn.setStyle("-fx-background-color: #415a77; -fx-text-fill: white; -fx-cursor: hand; -fx-padding: 6 8;");
+        btn.setOnAction(e -> action.run());
+        return btn;
+    }
+
+    private Button createTopBtn(String text, Runnable action) {
+        Button btn = new Button(text);
+        btn.setFont(Font.font("Segoe UI Emoji", 11));
+        btn.setStyle("-fx-background-color: #1b263b; -fx-text-fill: #e0e1dd; -fx-cursor: hand; -fx-padding: 6 10;");
+        btn.setOnMouseEntered(e -> btn.setStyle("-fx-background-color: #415a77; -fx-text-fill: white; -fx-cursor: hand; -fx-padding: 6 10;"));
+        btn.setOnMouseExited(e -> btn.setStyle("-fx-background-color: #1b263b; -fx-text-fill: #e0e1dd; -fx-cursor: hand; -fx-padding: 6 10;"));
+        btn.setOnAction(e -> action.run());
+        return btn;
+    }
+
     /**
      * Creates a section label for the sidebar.
      */

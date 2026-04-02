@@ -5,14 +5,41 @@ import javatower.entities.Hero;
 import javatower.entities.BonePile;
 import javatower.util.Constants;
 import java.util.List;
+import java.util.ArrayList;
 
+/**
+ * Lich — Tier-8 ranged summoner mini-boss.
+ * <p>
+ * AI behaviour:
+ * <ul>
+ *   <li><b>Kiting</b> — maintains preferred distance (~200 px); flees if hero
+ *       closes within 100 px, strafes perpendicular at preferred range.</li>
+ *   <li><b>Ranged attack</b> — fires every 1.8 s when hero is within attack range.</li>
+ *   <li><b>Bone-pile AI</b> — actively seeks nearby bone piles when summon
+ *       cooldown is nearly ready; moves toward them for mass resurrection.</li>
+ *   <li><b>Mass Resurrection</b> — if ≥ 2 bone piles within 400 – 500 px,
+ *       converts <em>all</em> of them into an undead horde (2–4 minions per pile).</li>
+ *   <li><b>Single summon</b> — fallback if only 1 bone pile is nearby.</li>
+ * </ul>
+ * </p>
+ *
+ * @author Vincent Chamberlain (2424309)
+ * @see Enemy
+ * @see BonePile
+ */
 public class Lich extends Enemy {
+    /** Seconds between summon attempts. */
     private double summonCooldown = 10.0;
+    /** Accumulator for summon cooldown. */
     private double summonTimer = 0;
+    /** Secondary attack timer for ranged attacks (separate from base). */
     private double attackTimer2 = 0;
+    /** Ideal distance the Lich tries to maintain from the hero.  */
     private static final double PREFERRED_DIST = 200;
+    /** Distance threshold below which the Lich will flee from the hero. */
     private static final double FLEE_DIST = 100;
-    private static final double BONE_SEEK_RANGE = 350; // max distance to seek bone piles
+    /** Maximum distance the Lich will travel to reach a bone pile. */
+    private static final double BONE_SEEK_RANGE = 350;
 
     public Lich(int waveLevel) {
         super(EnemyType.LICH, waveLevel);
@@ -39,9 +66,16 @@ public class Lich extends Enemy {
                     smoothMoveToward(nearest.getX(), nearest.getY(), dt);
                     seekingBones = true;
                 }
-                // Try to summon if ready and close enough
-                if (summonTimer >= summonCooldown && bpDist <= 250) {
-                    if (summonFromBones(250) != null) {
+                // Try MASS RESURRECTION if ready and close enough
+                if (summonTimer >= summonCooldown && bpDist <= 300) {
+                    int nearbyBones = countNearbyBonePiles(400);
+                    if (nearbyBones >= 2) {
+                        // Raise UNDEAD HORDE!
+                        int raised = massResurrection(400);
+                        if (raised > 0) {
+                            summonTimer = 0;
+                        }
+                    } else if (summonFromBones(250) != null) {
                         summonTimer = 0;
                     }
                 }
@@ -58,8 +92,8 @@ public class Lich extends Enemy {
                     double fleeX = getX() + (dx / len) * 250;
                     double fleeY = getY() + (dy / len) * 250;
                     double r = getRadius();
-                    fleeX = Math.max(r, Math.min(Constants.SCREEN_WIDTH - r, fleeX));
-                    fleeY = Math.max(r, Math.min(Constants.SCREEN_HEIGHT - r, fleeY));
+                    fleeX = Math.max(r, Math.min(Constants.WORLD_WIDTH - r, fleeX));
+                    fleeY = Math.max(r, Math.min(Constants.WORLD_HEIGHT - r, fleeY));
                     smoothMoveToward(fleeX, fleeY, dt);
                 }
             }
@@ -76,8 +110,8 @@ public class Lich extends Enemy {
                     double strafeX = getX() + (-dy / len) * 50;
                     double strafeY = getY() + (dx / len) * 50;
                     double r = getRadius();
-                    strafeX = Math.max(r, Math.min(Constants.SCREEN_WIDTH - r, strafeX));
-                    strafeY = Math.max(r, Math.min(Constants.SCREEN_HEIGHT - r, strafeY));
+                    strafeX = Math.max(r, Math.min(Constants.WORLD_WIDTH - r, strafeX));
+                    strafeY = Math.max(r, Math.min(Constants.WORLD_HEIGHT - r, strafeY));
                     smoothMoveToward(strafeX, strafeY, dt);
                 }
             }
@@ -92,10 +126,31 @@ public class Lich extends Enemy {
 
         // Fallback summon attempt (if not handled above)
         if (summonTimer >= summonCooldown) {
-            if (summonFromBones(250) != null) {
+            // Try mass resurrection if ANY bones nearby, otherwise normal summon
+            int nearbyBones = countNearbyBonePiles(500); // Increased range
+            if (nearbyBones >= 2) { // Lower threshold - just 2 bones triggers horde!
+                // MASS RESURRECTION - turn ALL nearby bones to UNDEAD HORDE!
+                int raised = massResurrection(500);
+                if (raised > 0) {
+                    summonTimer = 0;
+                }
+            } else if (summonFromBones(250) != null) {
                 summonTimer = 0;
             }
         }
+    }
+    
+    /** Count bone piles within range for mass resurrection decision. */
+    private int countNearbyBonePiles(double range) {
+        if (getBonePiles() == null) return 0;
+        int count = 0;
+        for (BonePile bp : getBonePiles()) {
+            if (bp.isEmpty()) continue;
+            double dx = getX() - bp.getX();
+            double dy = getY() - bp.getY();
+            if (Math.sqrt(dx * dx + dy * dy) <= range) count++;
+        }
+        return count;
     }
 
     /** Find the nearest non-empty bone pile within seek range. */
@@ -119,4 +174,65 @@ public class Lich extends Enemy {
 
     @Override
     public void specialAbility() {}
+    
+    /**
+     * MASS RESURRECTION: Converts ALL bone piles within range to UNDEAD HORDE!
+     * This is the Lich's ultimate ability - raises an army from all nearby bones!
+     * @param range Maximum distance to consume bone piles
+     * @return Number of undead raised
+     */
+    public int massResurrection(double range) {
+        if (getBonePiles() == null || getSiblings() == null) return 0;
+        
+        int undeadRaised = 0;
+        List<BonePile> pilesToConsume = new ArrayList<>();
+        
+        // Find ALL bone piles within range (increased range for horde effect)
+        for (BonePile bp : getBonePiles()) {
+            if (bp.isEmpty()) continue;
+            double dx = getX() - bp.getX();
+            double dy = getY() - bp.getY();
+            double dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist <= range) {
+                pilesToConsume.add(bp);
+            }
+        }
+        
+        // Consume ALL piles and spawn MASSIVE HORDE
+        for (BonePile bp : pilesToConsume) {
+            int tier = bp.consume(bp.getBoneCount());
+            
+            // HORDE SIZE: More undead per pile based on tier
+            // Tier 1-2: 2 undead | Tier 3-4: 3 undead | Tier 5+: 4 undead
+            int hordeSize = 2 + (tier / 2);
+            
+            for (int i = 0; i < hordeSize; i++) {
+                // MIX: 70% Skeletons, 30% Zombies for variety
+                EnemyType spawnType = (Math.random() < 0.7) ? EnemyType.SKELETON : EnemyType.ZOMBIE;
+                Enemy undead = javatower.factories.EnemyFactory.createEnemy(spawnType, getWaveLevel());
+                
+                // WIDER spread for horde effect (50-100px radius)
+                double angle = Math.random() * Math.PI * 2;
+                double distance = 30 + Math.random() * 70;
+                double offsetX = Math.cos(angle) * distance;
+                double offsetY = Math.sin(angle) * distance;
+                
+                undead.setPosition(bp.getX() + offsetX, bp.getY() + offsetY);
+                undead.setSiblings(getSiblings());
+                undead.setBonePiles(getBonePiles());
+                getSiblings().add(undead);
+                undeadRaised++;
+            }
+        }
+        
+        // Remove empty piles
+        getBonePiles().removeIf(BonePile::isEmpty);
+        
+        // Log the horde size
+        if (undeadRaised > 0) {
+            System.out.println("[Lich] ☠️ MASS RESURRECTION! Raised UNDEAD HORDE of " + undeadRaised + " creatures!");
+        }
+        
+        return undeadRaised;
+    }
 }

@@ -9,44 +9,88 @@ import javatower.util.Constants;
 import java.util.List;
 
 /**
- * Mini-map overlay showing a scaled-down view of the game world.
- * Displays hero, towers, and enemies as colored dots.
+ * Mini-map overlay drawn in the top-right corner of the game canvas.
+ * <p>
+ * Shows a scaled-down view of the entire world ({@link Constants#WORLD_WIDTH}
+ * × {@link Constants#WORLD_HEIGHT}), rendering:
+ * <ul>
+ *   <li><b>Hero</b> — green dot with white outline</li>
+ *   <li><b>Towers</b> — cyan dots</li>
+ *   <li><b>Enemies</b> — colour-coded by tier (grey → red → purple → orange → gold)</li>
+ *   <li><b>Camera viewport</b> — white rectangle showing the visible screen area</li>
+ * </ul>
+ * Toggled on/off with the <b>M</b> key or the top-bar “Map” button.
+ * </p>
+ *
+ * @author Vincent Chamberlain (2424309)
+ * @see GameBoard
  */
 public class MiniMap {
     
-    // Mini-map dimensions and position (bottom-left corner)
+    // Mini-map dimensions and position (top-right corner)
     public static final int WIDTH = 150;
     public static final int HEIGHT = 100;
     public static final int MARGIN = 10;
-    public static final int X_POS = MARGIN;
-    public static final int Y_POS = Constants.SCREEN_HEIGHT - HEIGHT - MARGIN;
+    public static final int X_POS = Constants.SCREEN_WIDTH - WIDTH - MARGIN;
+    public static final int Y_POS = MARGIN;
     
     // Scale factors to convert world coords to mini-map coords
-    private final double scaleX;
-    private final double scaleY;
+    private double scaleX;
+    private double scaleY;
     
     // Toggle visibility
     private boolean visible = true;
     
+    // Camera position for drawing viewport rectangle
+    private double cameraX = 0;
+    private double cameraY = 0;
+    
     public MiniMap() {
-        this.scaleX = (double) WIDTH / Constants.SCREEN_WIDTH;
-        this.scaleY = (double) HEIGHT / Constants.SCREEN_HEIGHT;
+        updateScale();
+    }
+    
+    private void updateScale() {
+        this.scaleX = (double) WIDTH / Constants.WORLD_WIDTH;
+        this.scaleY = (double) HEIGHT / Constants.WORLD_HEIGHT;
     }
     
     /**
      * Renders the mini-map on the game canvas.
      */
-    public void render(GraphicsContext gc, Hero hero, List<Enemy> enemies, List<Tower> towers) {
+    public void render(GraphicsContext gc, Hero hero, List<Enemy> enemies, List<Tower> towers, double camX, double camY) {
         if (!visible) return;
         
-        // Draw background
-        gc.setFill(Color.web("#0a0a1a", 0.85));
+        this.cameraX = camX;
+        this.cameraY = camY;
+        updateScale();
+        
+        // Draw background (world map)
+        gc.setFill(Color.web("#0a0a1a", 0.9));
         gc.fillRect(X_POS, Y_POS, WIDTH, HEIGHT);
+        
+        // Draw environmental regions (decorative)
+        gc.setFill(Color.web("#1a3a2a", 0.3));
+        java.util.Random rand = new java.util.Random(12345);
+        for (int i = 0; i < 20; i++) {
+            double ex = X_POS + rand.nextDouble() * WIDTH;
+            double ey = Y_POS + rand.nextDouble() * HEIGHT;
+            double size = 5 + rand.nextDouble() * 10;
+            gc.fillOval(ex - size/2, ey - size/2, size, size);
+        }
         
         // Draw border
         gc.setStroke(Color.web("#4ecca3", 0.6));
         gc.setLineWidth(2);
         gc.strokeRect(X_POS, Y_POS, WIDTH, HEIGHT);
+        
+        // Draw camera viewport rectangle (white outline showing what's on screen)
+        gc.setStroke(Color.web("#ffffff", 0.5));
+        gc.setLineWidth(1);
+        double viewX = X_POS + (cameraX * scaleX);
+        double viewY = Y_POS + (cameraY * scaleY);
+        double viewW = (Constants.SCREEN_WIDTH * scaleX);
+        double viewH = (Constants.SCREEN_HEIGHT * scaleY);
+        gc.strokeRect(viewX, viewY, viewW, viewH);
         
         // Draw towers (blue dots)
         if (towers != null) {

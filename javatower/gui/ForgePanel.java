@@ -4,6 +4,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.*;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
@@ -14,8 +15,19 @@ import java.util.List;
 import java.util.ArrayList;
 
 /**
- * Forge panel — combine two identical items (same name + rarity) to upgrade
- * them to the next rarity tier for a gold cost.
+ * Forge panel — item-combining UI.
+ * <p>
+ * The player selects two inventory items with the <em>same name and rarity</em>,
+ * pays a gold cost, and receives a single upgraded item at the next rarity tier.
+ * Uses the {@link Forge} system to validate and execute the combination.
+ * </p>
+ * <p>
+ * Layout: header → gold display → two selection slots (Slot 1 + Slot 2) →
+ * FORGE button → scrollable inventory list → Back button.
+ * </p>
+ *
+ * @author Vincent Chamberlain (2424309)
+ * @see Forge
  */
 public class ForgePanel extends VBox {
     private Hero hero;
@@ -93,19 +105,26 @@ public class ForgePanel extends VBox {
         forgeBtn.setDisable(true);
         forgeBtn.setOnAction(e -> doForge());
 
-        // Item list
+        // Item list (in scrollable area)
         Label invHeader = new Label("-- Inventory --");
         invHeader.setFont(Font.font("Monospaced", FontWeight.BOLD, 20));
         invHeader.setStyle("-fx-text-fill: #22d3ee;");
 
         itemListSection = new VBox(4);
+        
+        // Wrap item list in ScrollPane so it can scroll if too long
+        ScrollPane scrollPane = new ScrollPane(itemListSection);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setPrefHeight(300); // Fixed height for scrollable area
+        scrollPane.setStyle("-fx-background: #1a1a2e; -fx-background-color: #1a1a2e;");
+        VBox.setVgrow(scrollPane, Priority.ALWAYS);
 
         Button backBtn = new Button("Back to Game");
         backBtn.setFont(Font.font("Monospaced", FontWeight.BOLD, 20));
         backBtn.setStyle("-fx-background-color: #e94560; -fx-text-fill: white; -fx-cursor: hand;");
         backBtn.setOnAction(e -> gui.returnToGame());
 
-        getChildren().addAll(header, desc, goldLabel, statusLabel, selectionRow, forgeBtn, invHeader, itemListSection, backBtn);
+        getChildren().addAll(header, desc, goldLabel, statusLabel, selectionRow, forgeBtn, invHeader, scrollPane, backBtn);
         refresh();
     }
 

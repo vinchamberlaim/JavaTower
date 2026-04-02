@@ -18,47 +18,97 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- * Renders the game world using pixel coordinates.
+ * Renders the entire game world onto a JavaFX {@link Canvas}.
+ * <p>
+ * Responsibilities:
+ * <ul>
+ *   <li>Draws the background, fine grid, environment decorations.</li>
+ *   <li>Renders bone piles, towers (with range indicators), enemies, and the hero
+ *       using procedural pixel-art via {@link PixelArtRenderer}.</li>
+ *   <li>Manages a scrolling <b>camera</b> that smoothly follows the hero
+ *       (lerp-based) within world bounds.</li>
+ *   <li>Processes <b>visual effects</b> (projectiles, damage numbers, death dissolves).</li>
+ *   <li>Draws an in-game <b>HUD overlay</b> (ability cooldowns, run timer, wave
+ *       number) and tooltip pop-ups for hovered enemies / towers.</li>
+ *   <li>Shows a <b>tower placement preview</b> (ghost sprite + range circle)
+ *       while the player is in placement mode.</li>
+ *   <li>Delegates the <b>mini-map overlay</b> to {@link MiniMap}.</li>
+ * </ul>
+ * </p>
+ *
+ * @author Vincent Chamberlain (2424309)
+ * @see GameGUI
+ * @see MiniMap
+ * @see PixelArtRenderer
+ * @see VisualEffect
  */
 public class GameBoard extends Canvas {
     private Hero hero;
     private List<Enemy> enemies;
     private List<Tower> towers;
     private List<BonePile> bonePiles = new ArrayList<>();
+    /** Active visual effects (projectiles, damage numbers, etc.). */
     private List<VisualEffect> effects = new ArrayList<>();
-    
-    // Tower placement preview
+
+    // ==================== Tower Placement Preview ====================
+    /** The tower type being previewed for placement (null if not placing). */
     private TowerType pendingTowerType = null;
+    /** Current mouse X in screen-space (for preview positioning). */
     private double mouseX = 0;
+    /** Current mouse Y in screen-space. */
     private double mouseY = 0;
+    /** Whether to draw the ghost tower placement preview. */
     private boolean showPlacementPreview = false;
-    
-    // Screen shake effect
+
+    // ==================== Screen Shake ====================
+    /** Maximum pixel offset for the current shake. */
     private double shakeIntensity = 0;
+    /** Original duration of the current shake (for progress calculation). */
     private double shakeDuration = 0;
+    /** Remaining time for the current shake. */
     private double shakeTimer = 0;
+    /** Current frame’s random X offset from shake. */
     private double shakeOffsetX = 0;
+    /** Current frame’s random Y offset from shake. */
     private double shakeOffsetY = 0;
-    
-    // Mini-map overlay
+
+    // ==================== Sub-components ====================
+    /** Scaled-down world overview drawn in the top-right corner. */
     private MiniMap miniMap = new MiniMap();
-    
-    // Pixel art renderer for enemies and towers
+    /** Procedural pixel-art sprite renderer for enemies and towers. */
     private PixelArtRenderer pixelArtRenderer = new PixelArtRenderer();
-    
-    // Tower hover for range visualization
+
+    // ==================== Tower Hover ====================
+    /** The tower currently under the mouse cursor (for range / tooltip). */
     private Tower hoveredTower = null;
+    /** Pixel distance from tower centre that counts as “hovered”. */
     private static final double TOWER_HOVER_RADIUS = 32;
 
-    // HUD data — set by GameGUI each frame
-    private double[] abilityCooldowns = {0, 0, 0, 0}; // Q, W, E, R remaining
+    // ==================== HUD Data (set by GameGUI each frame) ====================
+    /** Remaining cooldown seconds for abilities [Q, W, E, R]. */
+    private double[] abilityCooldowns = {0, 0, 0, 0};
+    /** Maximum cooldown seconds for abilities [Q, W, E, R]. */
     private double[] abilityMaxCooldowns = {1.5, 3.0, 4.0, 5.0};
+    /** Mana cost for each ability [Q, W, E, R]. */
     private int[] abilityManaCosts = {15, 25, 20, 25};
+    /** Hero’s current mana (for HUD display). */
     private int heroMana = 0;
+    /** Elapsed run time in seconds (for HUD display). */
     private double runTime = 0;
+    /** Current wave number (for HUD display). */
     private int waveNumber = 0;
+    /** Number of enemies alive this wave (for HUD display). */
     private int enemyCount = 0;
-    private boolean sellConfirmActive = false; // tower sell confirmation (#40)
+    /** Whether the sell-confirmation prompt is currently active. */
+    private boolean sellConfirmActive = false;
+
+    // ==================== Camera ====================
+    /** Camera X offset in world-space pixels. */
+    private double cameraX = 0;
+    /** Camera Y offset in world-space pixels. */
+    private double cameraY = 0;
+    /** Whether the camera auto-follows the hero. */
+    private boolean cameraFollowHero = true;
 
     public GameBoard() {
         setWidth(Constants.SCREEN_WIDTH);
@@ -78,9 +128,12 @@ public class GameBoard extends Canvas {
     private void updateHoveredTower() {
         hoveredTower = null;
         if (towers != null) {
+            // Convert mouse screen coordinates to world coordinates
+            double worldMouseX = mouseX + cameraX;
+            double worldMouseY = mouseY + cameraY;
             for (Tower t : towers) {
-                if (t.isAlive() && Math.abs(t.getX() - mouseX) < TOWER_HOVER_RADIUS 
-                        && Math.abs(t.getY() - mouseY) < TOWER_HOVER_RADIUS) {
+                if (t.isAlive() && Math.abs(t.getX() - worldMouseX) < TOWER_HOVER_RADIUS 
+                        && Math.abs(t.getY() - worldMouseY) < TOWER_HOVER_RADIUS) {
                     hoveredTower = t;
                     break;
                 }
@@ -92,13 +145,19 @@ public class GameBoard extends Canvas {
      * Renders the board and all entities.
      */
     public void render(GraphicsContext gc) {
-        // Apply screen shake
-        gc.save();
-        gc.translate(shakeOffsetX, shakeOffsetY);
+        // Update camera position to follow hero
+        updateCamera();
         
-        // Background
-        gc.setFill(Color.web("#0f3460"));
-        gc.fillRect(0, 0, getWidth(), getHeight());
+        // Apply screen shake + camera offset
+        gc.save();
+        gc.translate(shakeOffsetX - cameraX, shakeOffsetY - cameraY);
+        
+        // Background (larger world)
+        gc.setFill(Color.web("#0a0a1a"));
+        gc.fillRect(0, 0, Constants.WORLD_WIDTH, Constants.WORLD_HEIGHT);
+        
+        // Draw environmental decorations (grass patches, rocks, etc.)
+        drawEnvironment(gc);
 
         drawGrid(gc);
 
@@ -153,7 +212,7 @@ public class GameBoard extends Canvas {
         gc.restore();
         
         // Draw mini-map (on top of everything, not affected by shake)
-        miniMap.render(gc, hero, enemies, towers);
+        miniMap.render(gc, hero, enemies, towers, cameraX, cameraY);
         
         // Draw HUD overlay (not affected by shake)
         drawHUD(gc);
@@ -206,6 +265,66 @@ public class GameBoard extends Canvas {
      */
     public double getShakeOffsetX() { return shakeOffsetX; }
     public double getShakeOffsetY() { return shakeOffsetY; }
+    
+    /**
+     * Updates camera position to follow hero.
+     * Keeps hero centered on screen while staying within world bounds.
+     */
+    private void updateCamera() {
+        if (!cameraFollowHero || hero == null) return;
+        
+        // Target camera position (hero centered)
+        double targetX = hero.getX() - Constants.SCREEN_WIDTH / 2;
+        double targetY = hero.getY() - Constants.SCREEN_HEIGHT / 2;
+        
+        // Clamp to world bounds
+        targetX = Math.max(0, Math.min(targetX, Constants.WORLD_WIDTH - Constants.SCREEN_WIDTH));
+        targetY = Math.max(0, Math.min(targetY, Constants.WORLD_HEIGHT - Constants.SCREEN_HEIGHT));
+        
+        // Smooth camera follow (lerp)
+        cameraX += (targetX - cameraX) * 0.1;
+        cameraY += (targetY - cameraY) * 0.1;
+    }
+    
+    /**
+     * Converts screen coordinates to world coordinates (accounting for camera).
+     */
+    public double[] screenToWorld(double screenX, double screenY) {
+        return new double[]{screenX + cameraX, screenY + cameraY};
+    }
+    
+    /**
+     * Gets current camera position.
+     */
+    public double getCameraX() { return cameraX; }
+    public double getCameraY() { return cameraY; }
+    
+    /**
+     * Draws environmental decorations (grass patches, rocks, etc.).
+     */
+    private void drawEnvironment(GraphicsContext gc) {
+        // Draw some static grass patches using seeded random positions
+        gc.setFill(Color.web("#1a3a2a", 0.3));
+        int seed = 12345; // Fixed seed for consistent decoration positions
+        java.util.Random rand = new java.util.Random(seed);
+        
+        for (int i = 0; i < 30; i++) {
+            double ex = rand.nextDouble() * Constants.WORLD_WIDTH;
+            double ey = rand.nextDouble() * Constants.WORLD_HEIGHT;
+            double size = 20 + rand.nextDouble() * 40;
+            gc.fillOval(ex - size/2, ey - size/2, size, size);
+        }
+        
+        // Draw some rock formations
+        gc.setFill(Color.web("#2a2a3a", 0.5));
+        rand = new java.util.Random(seed + 1);
+        for (int i = 0; i < 15; i++) {
+            double rx = rand.nextDouble() * Constants.WORLD_WIDTH;
+            double ry = rand.nextDouble() * Constants.WORLD_HEIGHT;
+            double size = 15 + rand.nextDouble() * 25;
+            gc.fillRoundRect(rx - size/2, ry - size/2, size, size, 5, 5);
+        }
+    }
 
     public void addEffect(VisualEffect effect) {
         effects.add(effect);
@@ -216,12 +335,14 @@ public class GameBoard extends Canvas {
     public void drawGrid(GraphicsContext gc) {
         gc.setStroke(Color.web("#1a1a2e", 0.3));
         gc.setLineWidth(0.5);
-        // Draw coarse tower placement grid
-        for (int x = 0; x <= Constants.TILE_COLS; x++) {
-            gc.strokeLine(x * Constants.TILE_SIZE, 0, x * Constants.TILE_SIZE, getHeight());
+        // Draw coarse tower placement grid across entire world
+        int worldTileCols = Constants.WORLD_WIDTH / Constants.TILE_SIZE;
+        int worldTileRows = Constants.WORLD_HEIGHT / Constants.TILE_SIZE;
+        for (int x = 0; x <= worldTileCols; x++) {
+            gc.strokeLine(x * Constants.TILE_SIZE, 0, x * Constants.TILE_SIZE, Constants.WORLD_HEIGHT);
         }
-        for (int y = 0; y <= Constants.TILE_ROWS; y++) {
-            gc.strokeLine(0, y * Constants.TILE_SIZE, getWidth(), y * Constants.TILE_SIZE);
+        for (int y = 0; y <= worldTileRows; y++) {
+            gc.strokeLine(0, y * Constants.TILE_SIZE, Constants.WORLD_WIDTH, y * Constants.TILE_SIZE);
         }
     }
 
@@ -588,7 +709,10 @@ public class GameBoard extends Canvas {
      * Draws a ghost tower and range indicator at mouse position.
      */
     private void drawPlacementPreview(GraphicsContext gc) {
-        int[] grid = screenToTowerGrid(mouseX, mouseY);
+        // Convert mouse to world coordinates for placement
+        double worldMouseX = mouseX + cameraX;
+        double worldMouseY = mouseY + cameraY;
+        int[] grid = screenToTowerGrid(worldMouseX, worldMouseY);
         int gx = grid[0], gy = grid[1];
         
         // Bounds check
@@ -697,54 +821,6 @@ public class GameBoard extends Canvas {
         gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 13));
         gc.fillText(waveStr, getWidth() / 2 - waveW / 2 + 8, 25);
 
-        // --- Ability cooldown icons (bottom-left) ---
-        String[] labels = {"Q", "W", "E", "R"};
-        Color[] colors = {Color.web("#e94560"), Color.web("#f97316"), Color.web("#4ecca3"), Color.web("#a855f7")};
-        double iconSize = 36;
-        double gap = 6;
-        double startX = 10;
-        double startY = getHeight() - iconSize - 10;
-
-        for (int i = 0; i < 4; i++) {
-            double ix = startX + i * (iconSize + gap);
-            double cd = abilityCooldowns[i];
-            double maxCd = abilityMaxCooldowns[i];
-            boolean canAfford = heroMana >= abilityManaCosts[i];
-            boolean onCooldown = cd > 0;
-
-            // Background
-            gc.setFill(Color.web("#1a1a2e", 0.8));
-            gc.fillRoundRect(ix, startY, iconSize, iconSize, 6, 6);
-
-            // Cooldown overlay (darkened portion from top)
-            if (onCooldown) {
-                double cdFrac = cd / maxCd;
-                gc.setFill(Color.web("#000000", 0.5));
-                gc.fillRect(ix + 2, startY + 2, iconSize - 4, (iconSize - 4) * cdFrac);
-            }
-
-            // Border color
-            Color borderColor = onCooldown ? Color.web("#555") : (canAfford ? colors[i] : Color.web("#666"));
-            gc.setStroke(borderColor);
-            gc.setLineWidth(2);
-            gc.strokeRoundRect(ix, startY, iconSize, iconSize, 6, 6);
-
-            // Key label
-            gc.setFill(canAfford && !onCooldown ? Color.WHITE : Color.web("#888"));
-            gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 16));
-            gc.fillText(labels[i], ix + iconSize / 2 - 5, startY + iconSize / 2 + 5);
-
-            // Mana cost
-            gc.setFont(Font.font("Monospaced", 9));
-            gc.setFill(Color.web("#3b82f6"));
-            gc.fillText(String.valueOf(abilityManaCosts[i]), ix + 2, startY + iconSize - 4);
-
-            // Cooldown remaining text
-            if (onCooldown) {
-                gc.setFont(Font.font("Monospaced", FontWeight.BOLD, 11));
-                gc.setFill(Color.web("#ff4444"));
-                gc.fillText(String.format("%.1f", cd), ix + iconSize / 2 - 10, startY + iconSize - 4);
-            }
-        }
+        // --- Ability cooldown icons removed - now shown in sidebar buttons ---
     }
 }

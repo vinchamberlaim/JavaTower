@@ -5,20 +5,54 @@ import javatower.util.Constants;
 import javatower.factories.EnemyFactory;
 
 /**
- * Abstract base class for all undead enemies in JavaTower.
- * Uses pixel coordinates and real-time movement.
+ * Abstract base class for every undead enemy in JavaTower.
+ * <p>
+ * Enemies use real-time pixel-coordinate movement, attack the {@link Hero}
+ * on a cooldown timer, and optionally consume {@link BonePile}s left by
+ * dead siblings to grow stronger. Each concrete enemy subclass (Zombie,
+ * Lich, NecromancerKing, etc.) overrides {@link #update(double, Hero)}
+ * and {@link #specialAbility()} to implement unique AI behaviour.
+ * </p>
+ * <p>
+ * An <b>Elite Modifier</b> system ({@link EliteModifier}) can be applied
+ * to any enemy to grant bonus stats and special traits (shields,
+ * regeneration, explosion on death).
+ * </p>
+ *
+ * @author Vincent Chamberlain (2424309)
+ * @see EnemyType
+ * @see EliteModifier
+ * @see BonePile
  */
 public abstract class Enemy extends Entity {
+    /**
+     * Enumerates all enemy types with base stats that scale per wave.
+     * <p>
+     * Each type has a <b>tier</b> (1–10) indicating overall strength.
+     * Stats ({@code hp, atk, def, exp, gold}) are multiplied by
+     * {@code 1 + waveLevel * 0.05} at spawn time.
+     * </p>
+     */
     public enum EnemyType {
+        /** Tier 1 — slow, tanky melee fodder. */
         ZOMBIE(1, 30, 5, 2, 10, 5),
+        /** Tier 2 — ranged attacker. */
         SKELETON(2, 25, 8, 1, 15, 8),
+        /** Tier 3 — fast melee rusher. */
         GHOUL(3, 40, 7, 3, 20, 12),
+        /** Tier 4 — balanced melee. */
         WIGHT(4, 60, 10, 5, 30, 18),
+        /** Tier 5 — phasing ghost, medium range. */
         WRAITH(5, 35, 12, 2, 25, 15),
+        /** Tier 6 — self-resurrecting mini-boss. */
         REVENANT(6, 80, 12, 8, 40, 25),
+        /** Tier 7 — heavily-armoured slow melee. */
         DEATH_KNIGHT(7, 120, 15, 12, 60, 40),
+        /** Tier 8 — ranged summoner mini-boss with mass-resurrection. */
         LICH(8, 70, 20, 6, 80, 50),
+        /** Tier 9 — colossal melee mini-boss. */
         BONE_COLOSSUS(9, 200, 18, 15, 100, 70),
+        /** Tier 10 — the final boss with dual-weapon AI. */
         NECROMANCER_KING(10, 500, 30, 20, 500, 200);
 
         public final int tier, hp, atk, def, exp, gold;
@@ -29,28 +63,55 @@ public abstract class Enemy extends Entity {
     }
 
     private EnemyType type;
+    /** XP awarded to the hero when this enemy is killed. */
     private int experienceValue;
+    /** Gold awarded to the hero when this enemy is killed. */
     private int goldValue;
+    /** Wave level at which this enemy was spawned (scales stats). */
     private int waveLevel;
+    /** True if this enemy is the final boss of the run. */
     private boolean isBoss;
+    /** True if this enemy is a mid-run mini-boss (Revenant, Lich, Bone Colossus). */
     private boolean isMiniBoss;
+    /** Wraith ability — can move through obstacles. */
     private boolean canPhase;
+    /** Revenant ability — can self-resurrect once. */
     private boolean canResurrect;
+    /** Lich / Necromancer King ability — can summon minions. */
     private boolean canSummon;
+    /** Reference to all living enemies (for collision avoidance and summoning). */
     private List<Enemy> siblings;
-    private List<BonePile> bonePiles;  // reference to global bone pile list for summoners
+    /** Reference to the global bone-pile list (for consumption and summoning). */
+    private List<BonePile> bonePiles;
 
-    private double speed;           // pixels per second
-    private double attackCooldown;  // seconds between attacks
-    private double attackTimer;     // time since last attack
-    private double attackRange;     // pixels
-    
-    // Elite modifier system
+    /** Movement speed in pixels per second (varies by type). */
+    private double speed;
+    /** Seconds between consecutive attacks. */
+    private double attackCooldown;
+    /** Accumulator tracking time since last attack. */
+    private double attackTimer;
+    /** Maximum range in pixels at which this enemy will attack the hero. */
+    private double attackRange;
+
+    // ========== ELITE MODIFIER SYSTEM ==========
+    /** The elite modifier currently active on this enemy ({@code NONE} for regular mobs). */
     private EliteModifier eliteModifier = EliteModifier.NONE;
+    /** Timer for HP regeneration (Regenerating elites regen 2 % HP/s). */
     private double hpRegenTimer = 0;
+    /** Whether the Shielded elite’s one-time damage absorb is still active. */
     private boolean hasShield = false;
+    /** Whether this Explosive elite will detonate on death. */
     private boolean willExplode = false;
 
+    /**
+     * Constructs an enemy of the given type at the specified wave level.
+     * Base stats from {@link EnemyType} are multiplied by
+     * {@code 1 + waveLevel * 0.05}, and movement / attack / radius
+     * defaults are assigned from the type’s switch block.
+     *
+     * @param type      the enemy archetype (determines base stats and abilities)
+     * @param waveLevel the wave number used to scale difficulty
+     */
     public Enemy(EnemyType type, int waveLevel) {
         this.type = type;
         this.waveLevel = waveLevel;
@@ -214,8 +275,8 @@ public abstract class Enemy extends Entity {
 
         // Clamp to screen bounds
         double r = getRadius();
-        newX = Math.max(r, Math.min(Constants.SCREEN_WIDTH - r, newX));
-        newY = Math.max(r, Math.min(Constants.SCREEN_HEIGHT - r, newY));
+        newX = Math.max(r, Math.min(Constants.WORLD_WIDTH - r, newX));
+        newY = Math.max(r, Math.min(Constants.WORLD_HEIGHT - r, newY));
 
         setPosition(newX, newY);
     }
@@ -230,6 +291,7 @@ public abstract class Enemy extends Entity {
     public void setSiblings(List<Enemy> siblings) { this.siblings = siblings; }
     public void setBonePiles(List<BonePile> bonePiles) { this.bonePiles = bonePiles; }
     protected List<BonePile> getBonePiles() { return bonePiles; }
+    protected List<Enemy> getSiblings() { return siblings; }
     public void setSpeed(double speed) { this.speed = speed; }
     public void setAttackRange(double range) { this.attackRange = range; }
     public void setAttackCooldown(double cd) { this.attackCooldown = cd; }
@@ -249,17 +311,17 @@ public abstract class Enemy extends Entity {
             if (Math.sqrt(dx * dx + dy * dy) <= consumeRange) {
                 bp.consume(bp.getBoneCount()); // consume entire pile
                 if (bp.isEmpty()) bonePiles.remove(i);
-                // Grow stronger (cap max radius)
-                double newRadius = Math.min(getRadius() * 1.2, Constants.ENEMY_RADIUS_MAX);
+                // Grow stronger (NERFED: slower growth, cap max radius)
+                double newRadius = Math.min(getRadius() * 1.08, Constants.ENEMY_RADIUS_MAX); // 8% growth (was 20%)
                 setRadius(newRadius);
-                setAttack((int)(getAttack() * 1.15));
-                setMaxHealth((int)(getMaxHealth() * 1.2));
-                setCurrentHealth(Math.min(getCurrentHealth() + (int)(getMaxHealth() * 0.2), getMaxHealth()));
+                setAttack((int)(getAttack() * 1.05)); // 5% attack (was 15%)
+                setMaxHealth((int)(getMaxHealth() * 1.08)); // 8% HP (was 20%)
+                setCurrentHealth(Math.min(getCurrentHealth() + (int)(getMaxHealth() * 0.1), getMaxHealth())); // 10% heal (was 20%)
                 
                 // CRITICAL FIX: Adjust position to stay on screen after growing
                 double r = getRadius();
-                double newX = Math.max(r, Math.min(Constants.SCREEN_WIDTH - r, getX()));
-                double newY = Math.max(r, Math.min(Constants.SCREEN_HEIGHT - r, getY()));
+                double newX = Math.max(r, Math.min(Constants.WORLD_WIDTH - r, getX()));
+                double newY = Math.max(r, Math.min(Constants.WORLD_HEIGHT - r, getY()));
                 setPosition(newX, newY);
                 
                 break; // only consume one pile per frame
@@ -296,6 +358,12 @@ public abstract class Enemy extends Entity {
 
     // ========== ELITE MODIFIER SYSTEM ==========
     
+    /**
+     * Applies an {@link EliteModifier} to this enemy, scaling HP, damage,
+     * speed, and reward values and enabling special traits.
+     *
+     * @param modifier the elite modifier to apply
+     */
     public void applyEliteModifier(EliteModifier modifier) {
         this.eliteModifier = modifier;
         if (modifier == EliteModifier.NONE) return;
@@ -337,6 +405,13 @@ public abstract class Enemy extends Entity {
         }
     }
     
+    /**
+     * Override of {@link Entity#takeDamage(int)} — Shielded elites
+     * absorb the first hit entirely (shield breaks, 0 damage taken).
+     *
+     * @param damage raw incoming damage before defence
+     * @return actual damage dealt after shield / defence reduction
+     */
     @Override
     public int takeDamage(int damage) {
         // Shield absorbs first hit

@@ -7,7 +7,23 @@ import java.util.HashMap;
 import javatower.entities.Hero;
 
 /**
- * Branching skill progression system for the hero.
+ * Branching skill-tree progression system.
+ * <p>
+ * Each tree (Combat, Magic, Utility) contains a directed acyclic graph
+ * of {@link SkillNode}s. A node can only be unlocked if all its
+ * prerequisite nodes are already unlocked and the hero has enough
+ * {@link Hero#getSkillPoints() skill points}.
+ * </p>
+ * <p>
+ * When a node is unlocked its stat bonuses (ATK, DEF, HP, crit, etc.)
+ * are applied to the hero via {@link #applyBonuses(Hero)}.
+ * The entire tree can be reset with {@link #respec()}, which refunds
+ * all spent points.
+ * </p>
+ *
+ * @author Vincent Chamberlain (2424309)
+ * @see SkillNode
+ * @see Hero#initSkillTrees()
  */
 public class SkillTree {
     private String name;
@@ -110,6 +126,34 @@ public class SkillTree {
                 }
             }
         }
+    }
+
+    /**
+     * Resets all nodes in this tree and returns refunded skill points.
+     * @return Number of skill points refunded
+     */
+    public int respec() {
+        int refunded = 0;
+        for (SkillNode node : nodes) {
+            if (node.isUnlocked()) {
+                refunded += node.getCost();
+                node.setUnlocked(false);
+            }
+        }
+        return refunded;
+    }
+    
+    /**
+     * Gets total spent skill points in this tree.
+     */
+    public int getSpentPoints() {
+        int spent = 0;
+        for (SkillNode node : nodes) {
+            if (node.isUnlocked()) {
+                spent += node.getCost();
+            }
+        }
+        return spent;
     }
 
     // Getters and setters
