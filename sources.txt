@@ -52,6 +52,7 @@ javatower\systems\WaveModifier.java
 javatower\systems\WaveManager.java
 javatower\systems\SaveGameManager.java
 javatower\util\Constants.java
+javatower\util\Difficulty.java
 javatower\util\GameState.java
 javatower\util\Logger.java
 Main.java

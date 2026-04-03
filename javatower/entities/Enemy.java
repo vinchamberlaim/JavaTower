@@ -2,6 +2,7 @@ package javatower.entities;
 
 import java.util.List;
 import javatower.util.Constants;
+import javatower.util.Difficulty;
 import javatower.factories.EnemyFactory;
 
 /**
@@ -116,9 +117,10 @@ public abstract class Enemy extends Entity {
         this.type = type;
         this.waveLevel = waveLevel;
         double scale = 1.0 + waveLevel * 0.05;
-        setMaxHealth((int)(type.hp * scale));
+        Difficulty diff = Difficulty.getCurrent();
+        setMaxHealth((int)(type.hp * scale * diff.enemyHpMul));
         setCurrentHealth(getMaxHealth());
-        setAttack((int)(type.atk * scale));
+        setAttack((int)(type.atk * scale * diff.enemyAtkMul));
         setDefence((int)(type.def * scale));
         this.experienceValue = (int)(type.exp * scale);
         this.goldValue = (int)(type.gold * scale);
@@ -252,8 +254,8 @@ public abstract class Enemy extends Entity {
                 double minSep = getRadius() + e.getRadius();
 
                 if (eDist < minSep) {
-                    if ((isBoss || isMiniBoss) && !e.isBoss()) {
-                        // Boss tramples smaller enemy
+                    if ((isBoss || isMiniBoss) && !e.isBoss() && !e.isMiniBoss()) {
+                        // Boss tramples smaller enemy (not other bosses/mini-bosses)
                         e.setCurrentHealth(0);
                         e.setAlive(false);
                     } else {

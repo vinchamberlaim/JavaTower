@@ -88,7 +88,34 @@ public class Hero extends Entity {
     // ==================== Ultimate Ability ====================
     /** Whether the hero is currently in RAGE mode (+50 % ATK/DEF). */
     private boolean ultimateActive = false;
+    // ==================== Auto-Cast Class Spells ====================
+    /** Cooldown timers for each set's auto-spell. */
+    private double holySpellTimer = 0;
+    private double deathSpellTimer = 0;
+    private double fireSpellTimer = 0;
+    private double knightSpellTimer = 0;
 
+    /** Cooldown durations (seconds) for class auto-spells. */
+    public static final double HOLY_SPELL_CD   = 6.0;
+    public static final double DEATH_SPELL_CD  = 5.0;
+    public static final double FIRE_SPELL_CD   = 4.0;
+    public static final double KNIGHT_SPELL_CD = 5.0;
+
+    public double getHolySpellTimer() { return holySpellTimer; }
+    public double getDeathSpellTimer() { return deathSpellTimer; }
+    public double getFireSpellTimer() { return fireSpellTimer; }
+    public double getKnightSpellTimer() { return knightSpellTimer; }
+    public void setHolySpellTimer(double v) { holySpellTimer = v; }
+    public void setDeathSpellTimer(double v) { deathSpellTimer = v; }
+    public void setFireSpellTimer(double v) { fireSpellTimer = v; }
+    public void setKnightSpellTimer(double v) { knightSpellTimer = v; }
+
+    public void tickSpellTimers(double dt) {
+        if (holySpellTimer > 0) holySpellTimer -= dt;
+        if (deathSpellTimer > 0) deathSpellTimer -= dt;
+        if (fireSpellTimer > 0) fireSpellTimer -= dt;
+        if (knightSpellTimer > 0) knightSpellTimer -= dt;
+    }
     // ==================== Dodge / Roll ====================
     /** True while the hero is mid-roll (invincible). */
     private boolean isRolling = false;

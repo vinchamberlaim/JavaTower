@@ -37,11 +37,11 @@ public class Shop {
     }
 
     /**
-     * Sells an item from the hero's inventory.
+     * Sells an item from the hero's inventory (one at a time from stacks).
      */
     public int sellItem(Hero hero, Item item) {
         int price = item.getSellPrice();
-        if (hero.getInventory().removeSpecificItem(item)) {
+        if (hero.getInventory().removeOne(item)) {
             hero.gainGold(price);
             return price;
         }

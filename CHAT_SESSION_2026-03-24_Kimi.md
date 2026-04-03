@@ -8,7 +8,7 @@
 
 ## Session Summary
 
-This session focused on implementing **Batch 2 Features** (5 core gameplay improvements) and various UI/UX enhancements for the JavaTower tower defense RPG.
+This session focused on implementing **Batch 2 Features** (5 core gameplay improvements), complete UI/UX redesign, camera system, and various bug fixes for the JavaTower tower defense RPG.
 
 ---
 
@@ -97,134 +97,129 @@ public enum SynergyType {
 
 ---
 
-## UI/UX Improvements
+## Major System Overhauls
 
-### Sidebar Redesign
-- Moved clickable icons to **LEFT** side
-- 3 organized sections: TOWERS, ABILITIES, MENU
-- Bigger fonts (16px) for accessibility
-- Fixed-width buttons (180px)
-- Hover effects on all buttons
+### 🎥 Camera Follow System (NEW)
+**Files:** `GameBoard.java`, `Constants.java`, `Enemy.java`, `Hero.java`
 
-### Fullscreen Mode
-- New 🖥️ Fullscreen [F11] button
-- F11 keyboard shortcut
-- Integrated into sidebar
+- World expanded to 1440×960 (1.5x screen size)
+- Camera smoothly follows hero
+- All entities use world bounds instead of screen bounds
+- Environmental decorations (grass, rocks)
 
-### Button Layout
+### 🗺️ Improved Mini-Map
+**File:** `MiniMap.java`
+
+- Shows entire world (not just screen)
+- White rectangle shows camera viewport
+- Moved to top-right corner
+
+### 🧟 Lich Mass Resurrection (ENHANCED)
+**File:** `Lich.java`
+
+```java
+// UNDEAD HORDE!
+- Triggers with 2+ bone piles (was 3+)
+- Range: 400-500px (was 300px)
+- Spawns 2-4 undead per pile (was 1-2)
+- 70% Skeletons, 30% Zombies
+- Wide spread: 30-100px radius
+```
+
+### 🌳 Expanded Skill Trees (ENHANCED)
+**File:** `Hero.java`, `SkillTree.java`, `SkillTreePanel.java`
+
+- **10 nodes per tree** (was 5)
+- New costs: 1→1→2→2→4 points
+- **Respec button** - Refund all points and rebuild
+- More branching choices per tree
+
+---
+
+## UI/UX Redesign
+
+### Complete Layout Overhaul
 ```
 ┌─────────────────────────────────────────┐
-│ 🛡️ TOWERS      │                      │
-│ 🏹 Arrow [1]   │    GAME BOARD        │
-│ ✨ Magic [2]   │    (Center)          │
-│ 💥 Siege [3]   │                      │
-│ 💚 Support [4] │    ┌───────────┐     │
-│ ⬆️ Upgrade [T] │    │ Right     │     │
-│ 💰 Sell [S]    │    │ Panel     │     │
-│ ───────────────┤    │ (Stats)   │     │
-│ ⚔️ ABILITIES   │    └───────────┘     │
-│ ⚔️ Slash [Q]   │                      │
-│ 🔥 Nova [W]    │                      │
-│ 💗 Heal [E]    │                      │
-│ ⚡ Boost [R]   │                      │
-│ 💨 Roll [SHIFT]│                      │
-│ 🔥 RAGE [F]    │                      │
-│ ───────────────┤                      │
-│ ☰ MENU         │                      │
-│ 🛒 Shop [TAB]  │                      │
-│ 🌳 Skills      │                      │
-│ 🎒 Items       │                      │
-│ 🔨 Forge       │                      │
-│ 🗺️ Map [M]     │                      │
-│ ⏸️ Pause [ESC] │                      │
-│ 🖥️ Full [F11]  │                      │
+│ ⚔️ JavaTower    [Shop][Items][Skills]...│  ← TOP BAR
+├─────────────────────────────────────────┤
+│                                         │
+│           GAME WORLD                    │
+│      (Camera follows hero)              │
+│                                         │
+│                                ┌─────┐  │
+│                                │ MAP │  │
+│                                └─────┘  │
+│                                         │
+├─────────────────────────────────────────┤
+│ 🏰TOWERS|⚔️ABILITIES|💨SPECIAL|🔧UTIL  │  ← BOTTOM BAR
+│  [1][2][3][4] [Q][W][E][R] [🔥][💨]    │
 └─────────────────────────────────────────┘
 ```
+
+### Changes Made:
+- **Removed left sidebar** - Moved all buttons to top/bottom
+- **Top menu bar** - Shop, Items, Skills, Forge, Map, Pause, Fullscreen
+- **Bottom action bar** - Towers, Abilities, Special actions
+- **Right panel** - Narrower (220px), compact stats
+- **Better colors** - Dark blue theme (#0d1b2a)
 
 ---
 
 ## Bug Fixes
 
 ### Monster Growth Bug (FIXED)
-**Problem:** Enemies consuming bone piles grew in size and got stuck off-screen.
+**File:** `Enemy.java`
+- Growth reduced: 20% → 8% per bone
+- Max radius: 80px → 60px
+- Position clamped after growth
 
-**Solution:**
-```java
-// After growing from bone pile:
-1. Cap max radius at 80px
-2. Immediately clamp position to screen bounds
-3. Prevent partial off-screen enemies
-```
+### Click Offset Bug (FIXED)
+**Files:** `GameGUI.java`, `GameBoard.java`
+- Added `screenToWorld()` conversion
+- Fixed tower hover detection
+- Fixed tower placement preview
+- Fixed click-to-move with camera
+
+### Forge/Shop Scrolling (FIXED)
+**Files:** `ForgePanel.java`, `ShopPanel.java`
+- Added ScrollPane for long item lists
+- "Back to Game" button always visible
 
 ---
 
-## Auto-Setup System
-
-### New Files for Easy Distribution
+## New Files Created
 
 | File | Purpose |
 |------|---------|
-| `Start.bat` | Simple double-click launcher |
-| `RunJavaTower.ps1` | Full auto-setup + launch |
-| `Setup.ps1` | Standalone dependency installer |
-
-### What Auto-Setup Does:
-1. ✓ Checks Java 21+ installation
-2. ✓ Downloads JavaFX SDK 21.0.2 (if missing)
-3. ✓ Downloads SQLite JDBC 3.45.1.0 (if missing)
-4. ✓ Compiles all 57 Java source files
-5. ✓ Creates database on first run
-6. ✓ Launches the game
+| `TowerSynergyManager.java` | Adjacent tower bonuses |
+| `WaveModifier.java` | Wave effect system |
+| `EliteModifier.java` | Elite enemy types |
+| `Setup.ps1` | Dependency installer |
+| `Start.bat` | Simple launcher |
+| `CHAT_SESSION_2026-03-24_Kimi.md` | This log |
+| `AI_CHAT_LOG_VINCENT_2424309.md` | Academic format log |
 
 ---
 
-## Key Code Changes
+## Files Modified
 
-### Hero.java - Roll Mechanics
-```java
-// Added fields:
-private boolean isRolling = false;
-private double rollDuration = 0.35;  // 350ms
-private double rollCooldown = 1.5;   // 1.5s
-private double rollSpeed = 3.0;      // 3x speed
+### Core Gameplay (13):
+- `Hero.java` - Roll, ultimate, skill trees
+- `Enemy.java` - Elite modifier, bone growth fix
+- `Lich.java` - Mass resurrection horde
+- `WaveManager.java` - Wave modifiers
+- `EnemyFactory.java` - Elite spawning
+- `GameBalanceConfig.java` - Constants
 
-// Invincibility during roll:
-@Override
-public int takeDamage(int damage) {
-    if (isRolling) return 0;  // INVINCIBLE!
-    // ... normal damage
-}
-```
-
-### WaveManager.java - Modifiers
-```java
-private WaveModifier currentModifier = WaveModifier.NONE;
-
-public void startWave() {
-    currentModifier = WaveModifier.randomModifier(currentWave);
-    if (currentModifier.hasModifier()) {
-        Logger.info("Wave Modifier: " + currentModifier.getName());
-    }
-}
-```
-
-### EnemyFactory.java - Elite Spawning
-```java
-public static Enemy createEnemy(EnemyType type, int waveLevel, WaveModifier mod) {
-    // Apply wave modifier effects
-    applyWaveModifier(enemy, mod);
-    
-    // Apply elite modifier
-    if (!enemy.isBoss() && !enemy.isMiniBoss()) {
-        if (mod == WaveModifier.ELITE_WAVE) {
-            enemy.applyEliteModifier(EliteModifier.randomForced());
-        } else {
-            enemy.applyEliteModifier(EliteModifier.randomModifier(waveLevel));
-        }
-    }
-    return enemy;
-}
-```
+### UI/UX (7):
+- `GameGUI.java` - Complete layout redesign
+- `GameBoard.java` - Camera system
+- `HeroPanel.java` - Compact stats
+- `MiniMap.java` - World view
+- `SkillTreePanel.java` - Respec button
+- `ForgePanel.java` - Scrolling
+- `ShopPanel.java` - Scrolling
 
 ---
 
@@ -234,6 +229,7 @@ public static Enemy createEnemy(EnemyType type, int waveLevel, WaveModifier mod)
 ✅ All 57 files compiled successfully
 ✅ 0 errors, 0 warnings
 ✅ Batch 2 Features fully integrated
+✅ All bug fixes applied
 ```
 
 ---
@@ -242,7 +238,7 @@ public static Enemy createEnemy(EnemyType type, int waveLevel, WaveModifier mod)
 
 | Key | Action |
 |-----|--------|
-| `1-4` | Place towers (Arrow/Magic/Siege/Support) |
+| `1-4` | Place towers |
 | `Q` | Slash (melee AoE) |
 | `W` | Nova (fire explosion) |
 | `E` | Heal 30% HP |
@@ -260,59 +256,16 @@ public static Enemy createEnemy(EnemyType type, int waveLevel, WaveModifier mod)
 
 ---
 
-## Files Modified/Added
-
-### New Files (3):
-- `javatower/systems/TowerSynergyManager.java`
-- `javatower/systems/WaveModifier.java`
-- `javatower/entities/EliteModifier.java`
-
-### Modified Files (8):
-- `javatower/entities/Hero.java` - Roll + ultimate state
-- `javatower/entities/Enemy.java` - Elite modifier + growth fix
-- `javatower/systems/WaveManager.java` - Modifier integration
-- `javatower/factories/EnemyFactory.java` - Elite & modifier spawning
-- `javatower/gui/GameGUI.java` - UI buttons + fullscreen + hotkeys
-- `javatower/database/DatabaseManager.java` - First-run messages
-- `javatower/util/Constants.java` - Max enemy radius constant
-- `sources.txt` - Added new files
-
-### Setup Files (3):
-- `Start.bat` - Simple launcher
-- `RunJavaTower.ps1` - Full setup script
-- `Setup.ps1` - Dependency installer
-
-### Documentation:
-- `README.md` - Updated with quick start
-- `BATCH2_IMPLEMENTATION.md` - Feature tracking
-
----
-
-## Developer Notes
-
-### Multi-Agent Coordination
-- Using `dev_tasks.json` for task tracking
-- `KIMI_TOP20_FLAGS.md` for feature flags
-- Clean separation between Copilot and Kimi work
-
-### Design Decisions
-1. **Elite spawn rate:** Scales with wave (5% base → ~20% at wave 30)
-2. **Wave modifier chance:** 10% base + 0.5% per wave
-3. **Roll invincibility:** Prevents damage completely during roll
-4. **Ultimate charge:** Multiple sources (damage dealt/taken, kills)
-5. **Tower synergy radius:** 150px for combo detection
-6. **Font sizes:** Increased to 15-16px for accessibility
-
----
-
 ## Session Duration
-~2-3 hours of development time
+Approximately 4-5 hours of development time
 
 ## Result
 ✅ **Batch 2 Features 100% Complete**  
-✅ **Auto-setup system implemented**  
-✅ **Bug fixes applied**  
-✅ **UI/UX improvements done**  
+✅ **Camera system implemented**  
+✅ **UI completely redesigned**  
+✅ **Lich horde mechanic added**  
+✅ **Skill trees expanded with respec**  
+✅ **All bugs fixed**  
 ✅ **Ready for distribution**
 
 ---

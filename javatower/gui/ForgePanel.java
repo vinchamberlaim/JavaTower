@@ -105,6 +105,16 @@ public class ForgePanel extends VBox {
         forgeBtn.setDisable(true);
         forgeBtn.setOnAction(e -> doForge());
 
+        // Auto-forge button
+        Button autoForgeBtn = new Button("AUTO FORGE");
+        autoForgeBtn.setFont(Font.font("Monospaced", FontWeight.BOLD, 22));
+        autoForgeBtn.setStyle("-fx-background-color: #8b5cf6; -fx-text-fill: white; -fx-cursor: hand;");
+        autoForgeBtn.setOnAction(e -> doAutoForge());
+
+        HBox forgeBtns = new HBox(16);
+        forgeBtns.setAlignment(Pos.CENTER);
+        forgeBtns.getChildren().addAll(forgeBtn, autoForgeBtn);
+
         // Item list (in scrollable area)
         Label invHeader = new Label("-- Inventory --");
         invHeader.setFont(Font.font("Monospaced", FontWeight.BOLD, 20));
@@ -124,7 +134,7 @@ public class ForgePanel extends VBox {
         backBtn.setStyle("-fx-background-color: #e94560; -fx-text-fill: white; -fx-cursor: hand;");
         backBtn.setOnAction(e -> gui.returnToGame());
 
-        getChildren().addAll(header, desc, goldLabel, statusLabel, selectionRow, forgeBtn, invHeader, scrollPane, backBtn);
+        getChildren().addAll(header, desc, goldLabel, statusLabel, selectionRow, forgeBtns, invHeader, scrollPane, backBtn);
         refresh();
     }
 
@@ -151,6 +161,20 @@ public class ForgePanel extends VBox {
             statusLabel.setText("Forging failed!");
             statusLabel.setStyle("-fx-text-fill: #e94560;");
         }
+        refresh();
+    }
+
+    private void doAutoForge() {
+        int count = Forge.autoForge(hero);
+        if (count > 0) {
+            statusLabel.setText("Auto-forged " + count + " item" + (count > 1 ? "s" : "") + "!");
+            statusLabel.setStyle("-fx-text-fill: #4ecca3;");
+        } else {
+            statusLabel.setText("Nothing to auto-forge (need 2+ matching items & gold).");
+            statusLabel.setStyle("-fx-text-fill: #e94560;");
+        }
+        selectedA = null;
+        selectedB = null;
         refresh();
     }
 
@@ -193,7 +217,8 @@ public class ForgePanel extends VBox {
 
             String setTag = item.getEquipmentSet() != Item.EquipmentSet.NONE
                     ? " {" + item.getEquipmentSet().className + "}" : "";
-            Label name = new Label(item.getName() + " [" + item.getRarity().name() + "]" + setTag);
+            String stackTag = item.getStackCount() > 1 ? " x" + item.getStackCount() : "";
+            Label name = new Label(item.getName() + " [" + item.getRarity().name() + "]" + setTag + stackTag);
             name.setFont(Font.font("Monospaced", 15));
             name.setStyle("-fx-text-fill: " + item.getRarity().color + ";");
             name.setPrefWidth(360);

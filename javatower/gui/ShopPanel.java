@@ -135,7 +135,8 @@ public class ShopPanel extends VBox {
 
             String setTag = item.getEquipmentSet() != Item.EquipmentSet.NONE
                     ? " {" + item.getEquipmentSet().className + "}" : "";
-            Label name = new Label(item.getName() + " [" + item.getRarity().name() + "]" + setTag);
+            String stackTag = item.getStackCount() > 1 ? " x" + item.getStackCount() : "";
+            Label name = new Label(item.getName() + " [" + item.getRarity().name() + "]" + setTag + stackTag);
             name.setFont(Font.font("Monospaced", 16));
             name.setStyle("-fx-text-fill: " + item.getRarity().color + ";");
             name.setPrefWidth(320);

@@ -36,9 +36,32 @@ public class Inventory {
     }
 
     /**
-     * Attempts to add an item, auto-finding placement.
+     * Finds an existing item in inventory that can stack with the given item
+     * (same name, rarity, and slot).
+     */
+    public Item findStackable(Item item) {
+        for (Item existing : items) {
+            if (existing.getName().equals(item.getName())
+                    && existing.getRarity() == item.getRarity()
+                    && existing.getSlot() == item.getSlot()) {
+                return existing;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Attempts to add an item, stacking with an existing identical item if possible,
+     * otherwise auto-finding placement on the grid.
      */
     public boolean addItem(Item item) {
+        // Try to stack with an existing item first
+        Item existing = findStackable(item);
+        if (existing != null) {
+            existing.addStack(item.getStackCount());
+            return true;
+        }
+        // Otherwise place on grid normally
         for (int x = 0; x <= width - item.getWidth(); x++) {
             for (int y = 0; y <= height - item.getHeight(); y++) {
                 if (canPlaceItem(item, x, y)) {
@@ -140,6 +163,19 @@ public class Inventory {
         if (pos == null) return false;
         removeItem(pos[0], pos[1]);
         return true;
+    }
+
+    /**
+     * Removes one copy from a stack. If the stack count drops to zero,
+     * the item is removed from the grid entirely.
+     */
+    public boolean removeOne(Item item) {
+        if (item.getStackCount() > 1) {
+            item.addStack(-1);
+            return true;
+        } else {
+            return removeSpecificItem(item);
+        }
     }
 
     // Getters

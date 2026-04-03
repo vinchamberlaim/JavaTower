@@ -24,6 +24,7 @@ import javatower.systems.Shop;
 import javatower.systems.SetBonusManager;
 import javatower.database.DatabaseManager;
 import javatower.util.Constants;
+import javatower.util.Difficulty;
 import javatower.util.GameState;
 import javatower.util.Logger;
 import java.util.ArrayList;
@@ -158,7 +159,7 @@ public class GameGUI extends Application {
         subtitle.setStyle("-fx-text-fill: #eee;");
 
         Button newGameBtn = createMenuButton("New Game");
-        newGameBtn.setOnAction(e -> startNewGame());
+        newGameBtn.setOnAction(e -> showDifficultySelect());
 
         Button loadGameBtn = createMenuButton("Load Game");
         loadGameBtn.setOnAction(e -> loadSavedGame());
@@ -179,11 +180,63 @@ public class GameGUI extends Application {
     }
 
     /**
+     * Shows the difficulty selection screen before starting a new game.
+     */
+    private void showDifficultySelect() {
+        VBox box = new VBox(20);
+        box.setAlignment(Pos.CENTER);
+        box.setPadding(new Insets(60));
+        box.setStyle("-fx-background-color: #1a1a2e;");
+
+        Label title = new Label("Select Difficulty");
+        title.setFont(Font.font("Monospaced", FontWeight.BOLD, 36));
+        title.setStyle("-fx-text-fill: #e94560;");
+
+        String[][] info = {
+            {"Easy",      "Enemies x0.7 · Hero +30% stats — relaxed"},
+            {"Normal",    "Standard experience — balanced for all players"},
+            {"Hard",      "Enemies x1.3 · Gold & XP +30% bonus"},
+            {"Nightmare", "Enemies x1.8 · Gold & XP +80% bonus"}
+        };
+        Difficulty[] diffs = Difficulty.values();
+
+        for (int i = 0; i < diffs.length; i++) {
+            Difficulty d = diffs[i];
+            Button btn = createMenuButton(d.displayName);
+            btn.setStyle(btn.getStyle() + "-fx-text-fill: " + d.colour + ";");
+            Label desc = new Label(info[i][1]);
+            desc.setFont(Font.font("Monospaced", 13));
+            desc.setStyle("-fx-text-fill: #999;");
+            VBox row = new VBox(2, btn, desc);
+            row.setAlignment(Pos.CENTER);
+            btn.setOnAction(e -> { Difficulty.setCurrent(d); startNewGame(); });
+            box.getChildren().add(row);
+        }
+
+        Button back = createMenuButton("Back");
+        back.setOnAction(e -> showMainMenu());
+        box.getChildren().addAll(title, back);
+        // Move title to top
+        box.getChildren().remove(title);
+        box.getChildren().add(0, title);
+
+        currentScene = new Scene(box, Constants.SCREEN_WIDTH + 250,
+                Constants.SCREEN_HEIGHT + 60);
+        primaryStage.setScene(currentScene);
+    }
+
+    /**
      * Starts a new game.
      */
     public void startNewGame() {
         hero = new Hero("Hero");
         hero.setPosition(100, Constants.SCREEN_HEIGHT / 2.0);
+        // Apply difficulty multiplier to hero starting stats
+        Difficulty diff = Difficulty.getCurrent();
+        hero.setMaxHealth((int)(hero.getMaxHealth() * diff.heroStatMul));
+        hero.setCurrentHealth(hero.getMaxHealth());
+        hero.setAttack((int)(hero.getAttack() * diff.heroStatMul));
+        hero.setDefence((int)(hero.getDefence() * diff.heroStatMul));
         waveManager = new javatower.systems.WaveManager();
         towers = new ArrayList<>();
         bonePiles = new ArrayList<>();
@@ -484,6 +537,10 @@ public class GameGUI extends Application {
         if (skillCooldownTimer > 0) skillCooldownTimer -= dt;
         if (specialCooldownTimer > 0) specialCooldownTimer -= dt;
         if (healCooldownTimer > 0) healCooldownTimer -= dt;
+
+        // Auto-cast class spells based on equipped set pieces
+        hero.tickSpellTimers(dt);
+        processAutoSpells();
         
         // Update ultimate ability
         if (ultimateActive) {
@@ -539,9 +596,11 @@ public class GameGUI extends Application {
             }
             gameBoard.addEffect(VisualEffect.createDeathDissolve(e.getX(), e.getY(), e.getRadius(), deathColor));
 
-            hero.gainExperience(e.getExperienceValue());
-            hero.gainGold(e.getGoldValue());
-            hero.recordKill(e.getMaxHealth(), e.getGoldValue(), e.getExperienceValue());
+            int xp = (int)(e.getExperienceValue() * Difficulty.getCurrent().xpMul);
+            int gold = (int)(e.getGoldValue() * Difficulty.getCurrent().goldMul);
+            hero.gainExperience(xp);
+            hero.gainGold(gold);
+            hero.recordKill(e.getMaxHealth(), gold, xp);
             
             // Ultimate charge for kills (more for elites/bosses)
             double killCharge = e.isElite() ? 15.0 : 5.0;
@@ -607,11 +666,6 @@ public class GameGUI extends Application {
                 DatabaseManager.getInstance().updateMaxWave(waveManager.getCurrentWave());
             } catch (Exception ex) { /* DB optional */ }
 
-            if (waveManager.getCurrentWave() >= Constants.MAX_WAVES) {
-                stopGameLoop();
-                showGameOver(true);
-                return;
-            }
             waitingForNextWave = false;
             waveManager.nextWave();
             startWave();
@@ -889,6 +943,99 @@ public class GameGUI extends Application {
     public boolean isUltimateActive() { return ultimateActive; }
     public double getUltimateDurationPercent() { 
         return ultimateActive ? (ultimateDuration / ULTIMATE_DURATION) : 0; 
+    }
+
+    // ========== AUTO-CAST CLASS SPELLS ==========
+
+    /**
+     * Processes automatic class spells triggered by equipped set pieces.
+     * Each set fires a unique auto-spell on a timer when the hero has 2+ pieces equipped.
+     * 4-piece sets get an enhanced version of the spell.
+     *
+     * HOLY:   Divine Judgement — heal self + smite nearby enemies
+     * DEATH:  Soul Siphon — drain life from nearby enemies
+     * FIRE:   Flame Nova — fire explosion around hero
+     * KNIGHT: War Cry — brief defence buff + stun nearby enemies
+     */
+    private void processAutoSpells() {
+        if (gameState != GameState.PLAYING) return;
+        Item[] eq = hero.getEquippedItems();
+        java.util.List<Enemy> enemies = waveManager.getActiveEnemies();
+
+        // HOLY: Divine Judgement
+        if (SetBonusManager.hasTwoPiece(eq, Item.EquipmentSet.HOLY) && hero.getHolySpellTimer() <= 0) {
+            boolean four = SetBonusManager.hasFourPiece(eq, Item.EquipmentSet.HOLY);
+            int healAmt = four ? (int)(hero.getEffectiveMaxHealth() * 0.25) : (int)(hero.getEffectiveMaxHealth() * 0.12);
+            hero.heal(healAmt);
+            gameBoard.addEffect(VisualEffect.createHealNumber(hero.getX(), hero.getY() - 20, healAmt));
+            // Smite nearest enemies
+            int smiteDmg = (int)(hero.getEffectiveAttack() * (four ? 2.5 : 1.2));
+            double range = four ? 120 : 70;
+            for (Enemy e : enemies) {
+                if (e.isAlive() && hero.distanceTo(e) <= range + e.getRadius()) {
+                    e.takeDamage(smiteDmg);
+                    gameBoard.addEffect(VisualEffect.createHolySmite(hero.getX(), hero.getY(), e.getX(), e.getY()));
+                }
+            }
+            hero.setHolySpellTimer(Hero.HOLY_SPELL_CD);
+        }
+
+        // DEATH: Soul Siphon
+        if (SetBonusManager.hasTwoPiece(eq, Item.EquipmentSet.DEATH) && hero.getDeathSpellTimer() <= 0) {
+            boolean four = SetBonusManager.hasFourPiece(eq, Item.EquipmentSet.DEATH);
+            int drainDmg = (int)(hero.getEffectiveAttack() * (four ? 1.8 : 0.9));
+            double range = four ? 110 : 70;
+            int totalDrained = 0;
+            int hitCount = 0;
+            for (Enemy e : enemies) {
+                if (e.isAlive() && hero.distanceTo(e) <= range + e.getRadius()) {
+                    int dealt = e.takeDamage(drainDmg);
+                    totalDrained += dealt;
+                    hitCount++;
+                    gameBoard.addEffect(VisualEffect.createNecroBolt(e.getX(), e.getY(), hero.getX(), hero.getY()));
+                }
+            }
+            if (totalDrained > 0) {
+                int lifeBack = (int)(totalDrained * (four ? 0.35 : 0.20));
+                hero.heal(lifeBack);
+                gameBoard.addEffect(VisualEffect.createHealNumber(hero.getX(), hero.getY() - 10, lifeBack));
+            }
+            // Mana restore
+            int manaBack = four ? 8 + hitCount * 3 : 4 + hitCount * 2;
+            hero.setMana(Math.min(hero.getEffectiveMaxMana(), hero.getMana() + manaBack));
+            hero.setDeathSpellTimer(Hero.DEATH_SPELL_CD);
+        }
+
+        // FIRE: Flame Nova
+        if (SetBonusManager.hasTwoPiece(eq, Item.EquipmentSet.FIRE) && hero.getFireSpellTimer() <= 0) {
+            boolean four = SetBonusManager.hasFourPiece(eq, Item.EquipmentSet.FIRE);
+            int novaDmg = (int)(hero.getEffectiveAttack() * (four ? 3.0 : 1.5));
+            double range = four ? 140 : 90;
+            gameBoard.addEffect(VisualEffect.createFireSplash(hero.getX(), hero.getY()));
+            for (Enemy e : enemies) {
+                if (e.isAlive() && hero.distanceTo(e) <= range + e.getRadius()) {
+                    e.takeDamage(novaDmg);
+                }
+            }
+            hero.setFireSpellTimer(Hero.FIRE_SPELL_CD);
+        }
+
+        // KNIGHT: War Cry — AoE damage + brief slow (damage only, no separate slow mechanic)
+        if (SetBonusManager.hasTwoPiece(eq, Item.EquipmentSet.KNIGHT) && hero.getKnightSpellTimer() <= 0) {
+            boolean four = SetBonusManager.hasFourPiece(eq, Item.EquipmentSet.KNIGHT);
+            int cryDmg = (int)(hero.getEffectiveAttack() * (four ? 2.0 : 1.0));
+            double range = four ? 100 : 60;
+            gameBoard.addEffect(VisualEffect.createImpactBurst(hero.getX(), hero.getY(), javafx.scene.paint.Color.STEELBLUE));
+            for (Enemy e : enemies) {
+                if (e.isAlive() && hero.distanceTo(e) <= range + e.getRadius()) {
+                    e.takeDamage(cryDmg);
+                }
+            }
+            // Self-heal (Knight tank identity)
+            int tankHeal = four ? (int)(hero.getEffectiveMaxHealth() * 0.10) : (int)(hero.getEffectiveMaxHealth() * 0.05);
+            hero.heal(tankHeal);
+            hero.setKnightSpellTimer(Hero.KNIGHT_SPELL_CD);
+        }
     }
 
     /**

@@ -49,12 +49,12 @@ public class WaveInfoPanel extends VBox {
     public void refresh() {
         if (waveManager == null) return;
         int current = waveManager.getCurrentWave();
-        waveLabel.setText("Wave: " + current + " / " + Constants.MAX_WAVES);
+        waveLabel.setText("Wave: " + current);
         enemyCountLabel.setText("Enemies: " + waveManager.getActiveEnemies().size());
         bossLabel.setText(waveManager.isBossWave() ? "*** BOSS WAVE ***" : "");
         bossLabel.setStyle(waveManager.isBossWave() ? "-fx-text-fill: #e94560; -fx-font-weight: bold;" : "-fx-text-fill: transparent;");
-        progressLabel.setText("Progress: " + (int)((current * 100.0) / Constants.MAX_WAVES) + "%");
-        waveProgress.setProgress((double) current / Constants.MAX_WAVES);
+        progressLabel.setText("");
+        waveProgress.setProgress(0);
     }
 
     private Label createLabel(String text) {

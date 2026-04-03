@@ -167,8 +167,9 @@ public class InventoryPanel extends VBox {
         String setTag = item.getEquipmentSet() != Item.EquipmentSet.NONE
                 ? " {" + item.getEquipmentSet().className + "}" : "";
         String twoH = item.isTwoHanded() ? " [2H]" : "";
+        String stackTag = item.getStackCount() > 1 ? " x" + item.getStackCount() : "";
         Label nameLabel = new Label(item.getName() + " [" + item.getRarity().name() + "]"
-                + setTag + twoH + " (" + item.getSlot() + ")");
+                + setTag + twoH + stackTag + " (" + item.getSlot() + ")");
         nameLabel.setFont(Font.font("Monospaced", 15));
         nameLabel.setStyle("-fx-text-fill: " + item.getRarity().color + ";");
         nameLabel.setPrefWidth(400);
@@ -190,10 +191,15 @@ public class InventoryPanel extends VBox {
                 if (manaVal != null) {
                     // Restore mana (simple add, capped)
                 }
-                inv.removeSpecificItem(itemRef);
+                inv.removeOne(itemRef);
             } else {
-                Item prev = hero.equipItem(itemRef);
-                inv.removeSpecificItem(itemRef);
+                Item toEquip = (itemRef.getStackCount() > 1) ? itemRef.copy() : itemRef;
+                if (itemRef.getStackCount() > 1) {
+                    itemRef.addStack(-1);
+                } else {
+                    inv.removeSpecificItem(itemRef);
+                }
+                Item prev = hero.equipItem(toEquip);
                 if (prev != null) inv.addItem(prev);
             }
             refresh();
@@ -202,7 +208,7 @@ public class InventoryPanel extends VBox {
         Button dropBtn = new Button("Drop");
         dropBtn.setStyle("-fx-background-color: #e94560; -fx-text-fill: white; -fx-font-size: 9;");
         dropBtn.setOnAction(e -> {
-            inv.removeSpecificItem(itemRef);
+            inv.removeOne(itemRef);
             refresh();
         });
 

@@ -15,7 +15,9 @@ public class Item {
         UNCOMMON(1.2, "green"),
         RARE(1.5, "blue"),
         EPIC(2.0, "purple"),
-        LEGENDARY(3.0, "orange");
+        LEGENDARY(3.0, "orange"),
+        MYTHIC(4.5, "#ff1493"),
+        DIVINE(6.0, "#00ffff");
         public final double mult;
         public final String color;
         Rarity(double mult, String color) { this.mult = mult; this.color = color; }
@@ -64,6 +66,7 @@ public class Item {
     private int itemLevel;
     private int buyPrice, sellPrice;
     private boolean twoHanded;
+    private int stackCount = 1;
 
     public Item(String name, String description, Slot slot, Rarity rarity, WeaponClass weaponClass, int width, int height, int itemLevel) {
         this(name, description, slot, rarity, weaponClass, EquipmentSet.NONE, width, height, itemLevel);
@@ -514,4 +517,19 @@ public class Item {
     public void setSellPrice(int price) { this.sellPrice = price; }
     public boolean isTwoHanded() { return twoHanded; }
     public void setTwoHanded(boolean twoHanded) { this.twoHanded = twoHanded; }
+    public int getStackCount() { return stackCount; }
+    public void setStackCount(int count) { this.stackCount = count; }
+    public void addStack(int amount) { this.stackCount += amount; }
+
+    public Item copy() {
+        Item c = new Item(name, description, slot, rarity, weaponClass, equipmentSet, width, height, itemLevel);
+        c.twoHanded = this.twoHanded;
+        for (Map.Entry<String, Integer> e : statBonuses.entrySet()) {
+            c.statBonuses.put(e.getKey(), e.getValue());
+        }
+        c.buyPrice = this.buyPrice;
+        c.sellPrice = this.sellPrice;
+        c.stackCount = 1;
+        return c;
+    }
 }
