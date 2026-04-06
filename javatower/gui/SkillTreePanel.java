@@ -16,10 +16,16 @@ import java.util.List;
 /**
  * Full-screen skill-tree UI with node-unlock buttons and a respec option.
  * <p>
- * Displays all three hero skill trees (Combat, Magic, Utility) in a
- * scrollable list. Each {@link SkillNode} shows its name, description,
+ * Displays all five hero skill trees (Warrior, Paladin, Necromancer,
+ * Pyromancer, Archer) in a scrollable list. Each {@link SkillNode} shows
+ * its name, description,
  * cost, and unlock state. The player can unlock nodes if prerequisites
  * are met and enough skill points are available.
+ * </p>
+ * <p>
+ * <b>CIS096 relevance:</b> demonstrates graph prerequisites (node dependency
+ * DAG), encapsulated state mutation through Hero methods, and event-driven UI
+ * updates in JavaFX.
  * </p>
  * <p>
  * A <b>Respec</b> button refunds all spent points, resets base stats to
@@ -35,6 +41,11 @@ public class SkillTreePanel extends VBox {
     private GameGUI gui;
     private VBox treeContent;
     private Label pointsLabel, statusLabel;
+    private ScrollPane scrollPane;
+    /** Persisted scroll position - only reset when panel is re-opened */
+    private double savedScrollV = 0;
+    /** Flag to prevent listener from overwriting scroll during refresh */
+    private boolean isRefreshing = false;
 
     public SkillTreePanel(Hero hero, GameGUI gui) {
         this.hero = hero;
@@ -64,9 +75,11 @@ public class SkillTreePanel extends VBox {
         respecBtn.setStyle("-fx-background-color: #f97316; -fx-text-fill: white; -fx-cursor: hand;");
         respecBtn.setOnAction(e -> {
             int refunded = 0;
-            if (hero.getCombatTree() != null) refunded += hero.getCombatTree().respec();
-            if (hero.getMagicTree() != null) refunded += hero.getMagicTree().respec();
-            if (hero.getUtilityTree() != null) refunded += hero.getUtilityTree().respec();
+            if (hero.getWarriorTree() != null) refunded += hero.getWarriorTree().respec();
+            if (hero.getPaladinTree() != null) refunded += hero.getPaladinTree().respec();
+            if (hero.getNecromancerTree() != null) refunded += hero.getNecromancerTree().respec();
+            if (hero.getPyromancerTree() != null) refunded += hero.getPyromancerTree().respec();
+            if (hero.getArcherTree() != null) refunded += hero.getArcherTree().respec();
             if (refunded > 0) {
                 hero.setSkillPoints(hero.getSkillPoints() + refunded);
                 // Re-apply base stats (reset and re-apply)
@@ -74,10 +87,13 @@ public class SkillTreePanel extends VBox {
                 hero.setAttack(10 + (hero.getLevel() - 1) * 2);
                 hero.setDefence(5 + (hero.getLevel() - 1));
                 hero.setMaxMana(50 + (hero.getLevel() - 1) * 5);
+                hero.resetSkillTreeSpecialBonuses();
                 // Re-apply unlocked skills
-                hero.getCombatTree().applyBonuses(hero);
-                hero.getMagicTree().applyBonuses(hero);
-                hero.getUtilityTree().applyBonuses(hero);
+                if (hero.getWarriorTree() != null) hero.getWarriorTree().applyBonuses(hero);
+                if (hero.getPaladinTree() != null) hero.getPaladinTree().applyBonuses(hero);
+                if (hero.getNecromancerTree() != null) hero.getNecromancerTree().applyBonuses(hero);
+                if (hero.getPyromancerTree() != null) hero.getPyromancerTree().applyBonuses(hero);
+                if (hero.getArcherTree() != null) hero.getArcherTree().applyBonuses(hero);
                 statusLabel.setText("Respec complete! Refunded " + refunded + " points");
             } else {
                 statusLabel.setText("No points to refund");
@@ -98,36 +114,66 @@ public class SkillTreePanel extends VBox {
         inner.setPadding(new Insets(10));
         inner.getChildren().addAll(pointsLabel, statusLabel, treeContent, buttonRow);
 
-        ScrollPane scroll = new ScrollPane(inner);
-        scroll.setFitToWidth(true);
-        scroll.setStyle("-fx-background: #1a1a2e; -fx-background-color: #1a1a2e;");
+        scrollPane = new ScrollPane(inner);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle("-fx-background: #1a1a2e; -fx-background-color: #1a1a2e;");
+        
+        // Save scroll position whenever user scrolls (but not during refresh)
+        scrollPane.vvalueProperty().addListener((obs, oldVal, newVal) -> {
+            if (!isRefreshing) {
+                savedScrollV = newVal.doubleValue();
+            }
+        });
 
-        getChildren().addAll(header, scroll);
+        getChildren().addAll(header, scrollPane);
         refresh();
     }
 
     public void refresh() {
+        isRefreshing = true;
         pointsLabel.setText("Skill Points: " + hero.getSkillPoints());
         treeContent.getChildren().clear();
 
-        renderTree("Combat", hero.getCombatTree());
-        renderTree("Magic", hero.getMagicTree());
-        renderTree("Utility", hero.getUtilityTree());
+        // Render all 5 class-based skill trees
+        renderTree("Warrior", hero.getWarriorTree(), "#60a5fa");      // Knight/Blue
+        renderTree("Paladin", hero.getPaladinTree(), "#f5d442");      // Holy/Gold
+        renderTree("Necromancer", hero.getNecromancerTree(), "#8b5cf6"); // Death/Purple
+        renderTree("Pyromancer", hero.getPyromancerTree(), "#ef4444");  // Fire/Red
+        renderTree("Archer", hero.getArcherTree(), "#22c55e");         // Ranged/Green
 
-        if (hero.getCombatTree() == null && hero.getMagicTree() == null && hero.getUtilityTree() == null) {
+        if (hero.getWarriorTree() == null && hero.getPaladinTree() == null && 
+            hero.getNecromancerTree() == null && hero.getPyromancerTree() == null && 
+            hero.getArcherTree() == null) {
             Label noTrees = new Label("No skill trees initialized yet.\nSkill trees unlock as you level up.");
             noTrees.setFont(Font.font("Monospaced", 18));
             noTrees.setStyle("-fx-text-fill: #666;");
             treeContent.getChildren().add(noTrees);
         }
+        
+        // Restore saved scroll position after layout update
+        if (scrollPane != null) {
+            final double targetScroll = savedScrollV;
+            javafx.application.Platform.runLater(() -> {
+                scrollPane.setVvalue(targetScroll);
+                isRefreshing = false;
+            });
+        } else {
+            isRefreshing = false;
+        }
+    }
+    
+    /** Reset scroll to top - call when opening panel fresh */
+    public void resetScroll() {
+        savedScrollV = 0;
+        if (scrollPane != null) scrollPane.setVvalue(0);
     }
 
-    private void renderTree(String treeName, SkillTree tree) {
+    private void renderTree(String treeName, SkillTree tree, String headerColor) {
         if (tree == null) return;
 
-        Label treeHeader = new Label("-- " + treeName.toUpperCase() + " TREE --");
-        treeHeader.setFont(Font.font("Monospaced", FontWeight.BOLD, 20));
-        treeHeader.setStyle("-fx-text-fill: #22d3ee;");
+        Label treeHeader = new Label("═══ " + treeName.toUpperCase() + " TREE ═══");
+        treeHeader.setFont(Font.font("Monospaced", FontWeight.BOLD, 22));
+        treeHeader.setStyle("-fx-text-fill: " + headerColor + ";");
         treeContent.getChildren().add(treeHeader);
 
         List<SkillNode> nodes = tree.getNodes();

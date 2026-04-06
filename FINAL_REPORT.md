@@ -100,10 +100,10 @@ The game includes:
 | FR-06 | Player can equip items in designated slots | Implemented (8 slots + 10 rings) |
 | FR-07 | Inventory uses grid-based placement (Tetris-style) | Implemented (2D array) |
 | FR-08 | Player can buy/sell items between waves | Implemented (Shop) |
-| FR-09 | Skill trees allow stat upgrades with prerequisites | Implemented (3 trees, 15 nodes) |
+| FR-09 | Skill trees allow stat upgrades with prerequisites | Implemented (5 trees, branching prerequisites) |
 | FR-10 | Game state can be saved and loaded | Implemented (SQLite, 4 slots) |
 | FR-11 | Tower synergies based on proximity | Implemented (5 synergy types) |
-| FR-12 | Equipment sets provide bonus stats | Implemented (4 sets, 2pc/4pc) |
+| FR-12 | Equipment sets provide bonus stats | Implemented (5 sets, 2pc/4pc) |
 | FR-13 | Items can be forged to upgrade rarity | Implemented (COMMON → LEGENDARY) |
 | FR-14 | Elite enemies with random modifiers | Implemented (8 modifier types) |
 | FR-15 | Boss encounters at milestone waves | Implemented (waves 5, 10, 15, 20, 25, 30) |
@@ -1017,6 +1017,24 @@ Arrow × 3     → Volley (synchronised fire)
 
 Synergies apply `double` multipliers to damage, attack speed, and range — demonstrating composition over inheritance (towers gain abilities through proximity rather than subclassing).
 
+### 7.6 Class Passive Ability Integration
+
+Recent implementation work focused on wiring skill-tree passives into live combat logic, which is directly relevant to the assignment's OOP and integration criteria.
+
+1. **Necromancer summon scaling**
+    - `necroSummonBonus` (from Necromancer tree callbacks) is applied in summon-damage formulas.
+    - NECROMANCY weapon-class threshold passives are processed through `SetBonusManager` and consumed by `Hero.processClassAutoSpells(...)`.
+
+2. **Pyromancer elemental summon**
+    - Tier-4 node `f4c` unlocks a Fire Elemental passive (`pyroElementalActive`).
+    - Elemental attacks are triggered on cooldown and scale with `pyroFireBonus`.
+
+3. **Respec safety and state invariants**
+    - Respec now calls `hero.resetSkillTreeSpecialBonuses()` before re-applying unlocked-node callbacks.
+    - This prevents stale callback fields from stacking incorrectly across multiple respecs.
+
+These changes provide clear evidence of encapsulation (state owned/mutated in `Hero`), polymorphism (shared `Enemy` interactions), and separation of concerns (`SetBonusManager` for rules, `Hero` for execution, UI panels for user input).
+
 ---
 
 ## 8. Database Design
@@ -1155,6 +1173,19 @@ javac --module-path javafx-sdk\lib --add-modules javafx.controls,javafx.graphics
 | **Vincent Chamberlain** | Core game loop, GameGUI, GameBoard renderer, hero sprite rendering, ability cooldown HUD, mana bar, gold notifications, run timer, death animation, level-up effects, tower sell confirmation, README and documentation |
 | **Nicolas Alfaro** | Enemy class hierarchy, EnemyFactory, elite modifiers, wave modifiers, tower targeting modes, tower kill tracking, tower synergy system, Lich bone-seeking AI, bone consumption growth |
 | **Emmanuel Adewumi** | Item system, ItemFactory, boss unique items, equipment sets, SetBonusManager, Inventory (Tetris grid), Shop, Forge, DatabaseManager, SaveGameManager, skill progression |
+
+### 10.5 Responsible AI Use (Assessment Compliance)
+
+AI tooling was used as a development assistant (idea exploration, debugging support, and documentation drafting), while all final code decisions, integration, testing, and validation were performed by the team.
+
+To align with CIS096-1 requirements:
+
+1. We kept human review over all generated suggestions before merge.
+2. We rewrote and adapted outputs to match project architecture and coding standards.
+3. We verified behaviour through compile checks and in-game testing.
+4. We maintained originality of final submitted implementation and report content.
+
+This reflects AI as a productivity aid, not a replacement for understanding OOP, data structures, and system design decisions.
 
 ---
 

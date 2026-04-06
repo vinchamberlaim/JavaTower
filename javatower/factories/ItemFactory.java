@@ -9,7 +9,14 @@ import javatower.entities.Item.EquipmentSet;
 
 /**
  * Factory for creating and generating items.
- * Normal items drop commonly; equipment set pieces are rare.
+ *
+ * <p><b>CIS096 relevance:</b> concrete implementation of the Factory pattern.
+ * Callers request "an item" and do not depend on concrete constructors,
+ * reducing coupling and making it easy to extend with new drops/boss loot.
+ * </p>
+ *
+ * <p>Normal items drop commonly; equipment-set pieces are rarer and used to
+ * drive class archetypes (Paladin, Necromancer, Pyromancer, Warrior, Archer).</p>
  */
 public class ItemFactory {
     private static final Random rand = new Random();
@@ -66,7 +73,7 @@ public class ItemFactory {
         // Enforce minimum RARE rarity for set items
         if (rarity.ordinal() < Rarity.RARE.ordinal()) rarity = Rarity.RARE;
 
-        EquipmentSet[] sets = { EquipmentSet.HOLY, EquipmentSet.DEATH, EquipmentSet.FIRE, EquipmentSet.KNIGHT };
+        EquipmentSet[] sets = { EquipmentSet.HOLY, EquipmentSet.DEATH, EquipmentSet.FIRE, EquipmentSet.KNIGHT, EquipmentSet.ARCHER };
         EquipmentSet set = sets[rand.nextInt(sets.length)];
         int piece = rand.nextInt(4); // weapon, offhand, helmet, chest
 
@@ -103,6 +110,14 @@ public class ItemFactory {
                     case 3: return Item.createSteelPlate(itemLevel, rarity);
                 }
                 break;
+            case ARCHER:
+                switch (piece) {
+                    case 0: return Item.createRangerBow(itemLevel, rarity);
+                    case 1: return Item.createRangerQuiver(itemLevel, rarity);
+                    case 2: return Item.createRangerHood(itemLevel, rarity);
+                    case 3: return Item.createRangerCloak(itemLevel, rarity);
+                }
+                break;
             default: break;
         }
         return Item.createSword(itemLevel, rarity); // fallback
@@ -118,11 +133,11 @@ public class ItemFactory {
         int tier = enemy.getType().tier;
         int level = enemy.getWaveLevel();
 
-        // Drop chance based on tier
+        // Drop chance based on tier (increased for better loot flow)
         double dropChance;
         if (tier >= 9) dropChance = 1.0;       // bosses always drop
-        else if (tier >= 5) dropChance = 0.30;  // mini-bosses
-        else dropChance = 0.08;                  // normal enemies
+        else if (tier >= 5) dropChance = 0.45;  // mini-bosses
+        else dropChance = 0.15;                  // normal enemies
 
         if (rand.nextDouble() > dropChance) return null;
 
@@ -142,7 +157,8 @@ public class ItemFactory {
             if (unique != null) return unique;
         }
 
-        if (rand.nextInt(100) < 12) {
+        // 25% chance for a class/set item (increased from 12%)
+        if (rand.nextInt(100) < 25) {
             return createRandomSetItem(level, rarity);
         }
         return createRandomItem(level, rarity);
@@ -163,8 +179,8 @@ public class ItemFactory {
             if (rand.nextInt(5) == 0) {
                 // 20% chance for a potion
                 stock.add(rand.nextBoolean() ? Item.createHealthPotion() : Item.createManaPotion());
-            } else if (rand.nextInt(100) < 10) {
-                // 10% chance for another set item
+            } else if (rand.nextInt(100) < 20) {
+                // 20% chance for another set item (increased from 10%)
                 stock.add(createRandomSetItem(waveLevel, rollRarity()));
             } else {
                 stock.add(createRandomItem(waveLevel, rollRarity()));

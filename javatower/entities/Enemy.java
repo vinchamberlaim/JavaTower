@@ -19,6 +19,11 @@ import javatower.factories.EnemyFactory;
  * to any enemy to grant bonus stats and special traits (shields,
  * regeneration, explosion on death).
  * </p>
+ * <p>
+ * <b>CIS096 relevance:</b> core demonstration of inheritance + polymorphism.
+ * The game loop stores enemies as {@code List<Enemy>} and calls shared methods,
+ * while each subclass provides distinct runtime behaviour via overrides.
+ * </p>
  *
  * @author Vincent Chamberlain (2424309)
  * @see EnemyType
@@ -103,6 +108,8 @@ public abstract class Enemy extends Entity {
     private boolean hasShield = false;
     /** Whether this Explosive elite will detonate on death. */
     private boolean willExplode = false;
+    /** Whether this enemy was summoned by a Lich (not part of wave spawn count). */
+    private boolean isSummoned = false;
 
     /**
      * Constructs an enemy of the given type at the specified wave level.
@@ -116,7 +123,8 @@ public abstract class Enemy extends Entity {
     public Enemy(EnemyType type, int waveLevel) {
         this.type = type;
         this.waveLevel = waveLevel;
-        double scale = 1.0 + waveLevel * 0.05;
+        // Increased scaling from 0.05 to 0.12 for better difficulty curve
+        double scale = 1.0 + waveLevel * 0.12;
         Difficulty diff = Difficulty.getCurrent();
         setMaxHealth((int)(type.hp * scale * diff.enemyHpMul));
         setCurrentHealth(getMaxHealth());
@@ -351,6 +359,7 @@ public abstract class Enemy extends Entity {
                 minion.setPosition(bp.getX(), bp.getY());
                 minion.setSiblings(siblings);
                 minion.setBonePiles(bonePiles);
+                minion.setSummoned(true); // Mark as summoned, not part of wave count
                 siblings.add(minion);
                 return minion;
             }
@@ -392,6 +401,8 @@ public abstract class Enemy extends Entity {
     public boolean isElite() { return eliteModifier != EliteModifier.NONE; }
     public boolean hasShield() { return hasShield; }
     public boolean willExplode() { return willExplode; }
+    public boolean isSummoned() { return isSummoned; }
+    public void setSummoned(boolean summoned) { this.isSummoned = summoned; }
     
     public void breakShield() { hasShield = false; }
     

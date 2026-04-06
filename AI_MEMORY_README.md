@@ -23,6 +23,11 @@
 .\ai_add_memory.ps1 -Topic "Topic" -Content "Details" -Source "kimi" -Category "decision"
 ```
 
+### Log Current Chat Immediately
+```powershell
+.\ai_log_chat.ps1 -Content "Short summary of this session" -Source copilot -Role session_note -FileOrigin manual -AlsoMemory
+```
+
 ### Direct SQL (for AI assistants)
 ```powershell
 # Search
@@ -161,6 +166,7 @@ The OneDrive location (`C:\Users\Vincent\OneDrive\Desktop\Java`) already syncs a
 | `ai_memory.db` | SQLite database |
 | `ai_search.ps1` | Search utility |
 | `ai_add_memory.ps1` | Add new memories |
+| `ai_log_chat.ps1` | Add direct chat/session log entry |
 | `ai_memory_import.ps1` | Bulk import chat logs |
 | `setup_memory_db.sql` | Schema definition |
 | `AI_MEMORY_README.md` | This documentation |

@@ -9,24 +9,29 @@ import javatower.entities.Item.EquipmentSet;
 import javatower.entities.Item.WeaponClass;
 
 /**
- * Tracks and applies equipment set bonuses based on what the hero is wearing.
+ * Static rules engine for equipment-set and weapon-class bonuses.
  *
- * Set bonus tiers:
- *   2-piece: moderate passive boost
- *   4-piece: powerful class-defining bonus
+ * <p><b>CIS096 relevance:</b> This class is a focused example of separation of
+ * concerns and abstraction. Combat code asks high-level questions
+ * ({@code hasTwoPiece}, {@code getFireDamageBonus}, {@code hasNecromancySummonArmy})
+ * while bonus logic remains centralized here.</p>
  *
- * Sets:
- *   HOLY  (Paladin)    – 2pc: +20% heal | 4pc: +50% vs undead, HP regen
- *   DEATH (Necromancer) – 2pc: +25% summon HP | 4pc: 10% life steal, mana regen
- *   FIRE  (Pyromancer)  – 2pc: +25% damage | 4pc: 30% AoE splash on hit
- *   KNIGHT(Warrior)     – 2pc: +25% defence | 4pc: thorns 15%, melee speed
+ * <p>Set tiers:
+ * 2-piece = moderate passive boost
+ * 4-piece = class-defining power spike
+ * </p>
  *
- * Class-Based Bonuses (based on WeaponClass of equipped items):
- *   NECROMANCY – Death magic bonuses
- *   ARCHER     – Ranged/bow bonuses  
- *   MELEE      – Close combat bonuses
- *   HOLY       – Healing/divine bonuses
- *   DEFENCE    – Shield/armor bonuses
+ * <p>Sets:
+ * HOLY (Paladin): 2pc +20% heal | 4pc +50% vs undead + HP regen
+ * DEATH (Necromancer): 2pc +25% summon HP | 4pc lifesteal + mana regen
+ * FIRE (Pyromancer): 2pc +25% damage | 4pc splash on hit
+ * KNIGHT (Warrior): 2pc +25% defence | 4pc thorns + melee speed
+ * ARCHER (Ranger): 2pc crit/range, 4pc speed/multishot
+ * </p>
+ *
+ * <p>Weapon-class passives (count equipped items by {@link WeaponClass}):
+ * NECROMANCY, ARCHER, MELEE, HOLY, DEFENCE.
+ * </p>
  */
 public class SetBonusManager {
 
@@ -125,6 +130,28 @@ public class SetBonusManager {
     /** Knight 4pc: melee attack speed bonus (seconds off cooldown). */
     public static double getKnightSpeedBonus(Item[] equipped) {
         return hasFourPiece(equipped, EquipmentSet.KNIGHT) ? 0.15 : 0.0;
+    }
+
+    // ---- ARCHER SET BONUSES ----
+
+    /** Archer 2pc: +50 flat range bonus. */
+    public static double getArcherSetRangeBonus(Item[] equipped) {
+        return hasTwoPiece(equipped, EquipmentSet.ARCHER) ? 50 : 0;
+    }
+
+    /** Archer 2pc: +10% crit chance. */
+    public static int getArcherSetCritBonus(Item[] equipped) {
+        return hasTwoPiece(equipped, EquipmentSet.ARCHER) ? 10 : 0;
+    }
+
+    /** Archer 4pc: Multishot fires +3 extra arrows. */
+    public static int getArcherSetMultishotBonus(Item[] equipped) {
+        return hasFourPiece(equipped, EquipmentSet.ARCHER) ? 3 : 0;
+    }
+
+    /** Archer 4pc: +25% attack speed. */
+    public static double getArcherSetSpeedBonus(Item[] equipped) {
+        return hasFourPiece(equipped, EquipmentSet.ARCHER) ? 0.25 : 0.0;
     }
 
     // ========== WEAPON CLASS BONUSES ==========
@@ -382,6 +409,7 @@ public class SetBonusManager {
             case DEATH:  return "+25% Summon HP";
             case FIRE:   return "+25% Attack Damage";
             case KNIGHT: return "+25% Defence";
+            case ARCHER: return "+50 Range, +10% Crit";
             default:     return "";
         }
     }
@@ -392,6 +420,7 @@ public class SetBonusManager {
             case DEATH:  return "10% Life Steal, Mana Regen";
             case FIRE:   return "30% AoE Splash Damage";
             case KNIGHT: return "Thorns 15%, +Melee Speed";
+            case ARCHER: return "+3 Multishot Arrows, +25% Attack Speed";
             default:     return "";
         }
     }

@@ -95,6 +95,9 @@ New-Item -ItemType Directory -Path $outDir | Out-Null
 
 $sqlitePath = $sqliteJar.FullName
 
+# Build classpath with all jars in lib folder for compile
+$allLibJars = (Get-ChildItem $libDir -Filter "*.jar" | ForEach-Object { $_.FullName }) -join ";"
+
 # Collect all java files and write relative paths to sources.txt
 $allJava = @()
 $allJava += (Get-ChildItem -Recurse -Filter "*.java" -Path javatower).FullName
@@ -104,7 +107,7 @@ $relFiles | Set-Content -Path "sources.txt" -Encoding ASCII
 
 Write-Host ("  Found " + $allJava.Count + " source files") -ForegroundColor DarkGray
 
-$compileCmd = 'javac --module-path "' + $javafxLib + '" --add-modules javafx.controls,javafx.graphics -cp "' + $sqlitePath + '" -d "' + $outDir + '" @sources.txt'
+$compileCmd = 'javac --module-path "' + $javafxLib + '" --add-modules javafx.controls,javafx.graphics -cp "' + $allLibJars + '" -d "' + $outDir + '" @sources.txt'
 $errOutput = cmd /c "$compileCmd 2>&1"
 $exitCode = $LASTEXITCODE
 
@@ -128,7 +131,9 @@ Write-Host "       (Database will auto-create on first run)" -ForegroundColor Da
 Write-Host "  ========================================" -ForegroundColor Cyan
 Write-Host ""
 
-$runCp      = '"' + $outDir + ";" + $sqlitePath + '"'
+# Build classpath with all jars in lib folder
+$allJars = (Get-ChildItem $libDir -Filter "*.jar" | ForEach-Object { $_.FullName }) -join ";"
+$runCp      = '"' + $outDir + ";" + $allJars + '"'
 $runModPath = '"' + $javafxLib + '"'
 $runCmd     = "java --module-path " + $runModPath + " --add-modules javafx.controls,javafx.graphics -cp " + $runCp + " Main"
 cmd /c "$runCmd 2>&1"

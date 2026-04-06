@@ -40,6 +40,11 @@ import java.util.List;
  * {@link #gameUpdate(double)} (simulation) and {@link #renderBoard()}
  * (rendering) every frame at ~60 FPS.
  * </p>
+ * <p>
+ * <b>CIS096 relevance:</b> acts as the controller/orchestrator in an MVC-like
+ * architecture: coordinates model updates ({@link Hero}, {@link Enemy}, towers),
+ * drives view refreshes ({@link GameBoard}), and enforces state transitions.
+ * </p>
  * <h3>Keyboard Hotkeys</h3>
  * <ul>
  *   <li><b>1–4</b> — place Arrow / Magic / Siege / Support tower</li>
@@ -640,7 +645,10 @@ public class GameGUI extends Application {
             gameBoard.addEffect(VisualEffect.createImpactBurst(e.getX(), e.getY(), javafx.scene.paint.Color.web("#e94560")));
             // Spawn bone pile at death location
             bonePiles.add(new BonePile(e.getX(), e.getY(), e.getRadius(), e.getType().tier));
-            waveManager.onEnemyKilled(e);
+            // Only count original wave enemies, not summoned ones
+            if (!e.isSummoned()) {
+                waveManager.onEnemyKilled(e);
+            }
         }
         enemies.removeIf(e -> !e.isAlive());
 
@@ -666,9 +674,10 @@ public class GameGUI extends Application {
                 DatabaseManager.getInstance().updateMaxWave(waveManager.getCurrentWave());
             } catch (Exception ex) { /* DB optional */ }
 
-            waitingForNextWave = false;
+            waitingForNextWave = true; // Prevent multiple wave starts
             waveManager.nextWave();
             startWave();
+            waitingForNextWave = false; // Allow next wave after start completes
         }
 
         // Refresh panels every few frames (reduce label thrashing)
@@ -968,8 +977,8 @@ public class GameGUI extends Application {
             int healAmt = four ? (int)(hero.getEffectiveMaxHealth() * 0.25) : (int)(hero.getEffectiveMaxHealth() * 0.12);
             hero.heal(healAmt);
             gameBoard.addEffect(VisualEffect.createHealNumber(hero.getX(), hero.getY() - 20, healAmt));
-            // Smite nearest enemies
-            int smiteDmg = (int)(hero.getEffectiveAttack() * (four ? 2.5 : 1.2));
+            // Smite nearest enemies (reduced multipliers for balance)
+            int smiteDmg = (int)(hero.getEffectiveAttack() * (four ? 1.2 : 0.5));
             double range = four ? 120 : 70;
             for (Enemy e : enemies) {
                 if (e.isAlive() && hero.distanceTo(e) <= range + e.getRadius()) {
@@ -983,7 +992,8 @@ public class GameGUI extends Application {
         // DEATH: Soul Siphon
         if (SetBonusManager.hasTwoPiece(eq, Item.EquipmentSet.DEATH) && hero.getDeathSpellTimer() <= 0) {
             boolean four = SetBonusManager.hasFourPiece(eq, Item.EquipmentSet.DEATH);
-            int drainDmg = (int)(hero.getEffectiveAttack() * (four ? 1.8 : 0.9));
+            double necroMult = 1.0 + hero.getNecroSummonBonus();
+            int drainDmg = (int)(hero.getEffectiveAttack() * (four ? 1.0 : 0.4) * necroMult);
             double range = four ? 110 : 70;
             int totalDrained = 0;
             int hitCount = 0;
@@ -1009,7 +1019,8 @@ public class GameGUI extends Application {
         // FIRE: Flame Nova
         if (SetBonusManager.hasTwoPiece(eq, Item.EquipmentSet.FIRE) && hero.getFireSpellTimer() <= 0) {
             boolean four = SetBonusManager.hasFourPiece(eq, Item.EquipmentSet.FIRE);
-            int novaDmg = (int)(hero.getEffectiveAttack() * (four ? 3.0 : 1.5));
+            double pyroMult = 1.0 + hero.getPyroFireBonus();
+            int novaDmg = (int)(hero.getEffectiveAttack() * (four ? 1.5 : 0.6) * pyroMult);
             double range = four ? 140 : 90;
             gameBoard.addEffect(VisualEffect.createFireSplash(hero.getX(), hero.getY()));
             for (Enemy e : enemies) {
@@ -1023,7 +1034,7 @@ public class GameGUI extends Application {
         // KNIGHT: War Cry — AoE damage + brief slow (damage only, no separate slow mechanic)
         if (SetBonusManager.hasTwoPiece(eq, Item.EquipmentSet.KNIGHT) && hero.getKnightSpellTimer() <= 0) {
             boolean four = SetBonusManager.hasFourPiece(eq, Item.EquipmentSet.KNIGHT);
-            int cryDmg = (int)(hero.getEffectiveAttack() * (four ? 2.0 : 1.0));
+            int cryDmg = (int)(hero.getEffectiveAttack() * (four ? 1.0 : 0.4));
             double range = four ? 100 : 60;
             gameBoard.addEffect(VisualEffect.createImpactBurst(hero.getX(), hero.getY(), javafx.scene.paint.Color.STEELBLUE));
             for (Enemy e : enemies) {

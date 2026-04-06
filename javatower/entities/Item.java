@@ -4,7 +4,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Represents equipment and consumable items with Tetris-style sizing.
+ * Represents equipment items with typed slots, rarity scaling, class tags,
+ * and optional equipment-set membership.
+ *
+ * <p><b>CIS096 relevance:</b> This class demonstrates encapsulation through
+ * private state + controlled factory creation, and abstraction through enums
+ * ({@link Slot}, {@link Rarity}, {@link WeaponClass}, {@link EquipmentSet})
+ * that replace magic numbers/strings with type-safe domain models.</p>
  */
 public class Item {
     public enum Slot {
@@ -45,6 +51,7 @@ public class Item {
         DEATH("Necromancer","#8b5cf6", 2, 4),
         FIRE("Pyromancer", "#ef4444", 2, 4),
         KNIGHT("Warrior",  "#60a5fa", 2, 4),
+        ARCHER("Ranger",   "#22c55e", 2, 4),
         NONE("None",       "#aaa",    0, 0);
 
         public final String className, color;
@@ -320,6 +327,41 @@ public class Item {
         return item;
     }
 
+    // ========== ARCHER SET (Ranger) — range + multishot + crit ==========
+    public static Item createRangerBow(int level, Rarity rarity) {
+        Item item = new Item("Ranger's Longbow", "An elven-crafted bow of extraordinary range.", Slot.WEAPON, rarity, WeaponClass.RANGED, EquipmentSet.ARCHER, 1, 4, level);
+        item.statBonuses.put("attack", (int)(10 * rarity.mult * level));
+        item.statBonuses.put("range", (int)(60 * rarity.mult));
+        item.statBonuses.put("critChance", (int)(5 * rarity.mult));
+        item.twoHanded = true;
+        item.autoPrice(); item.buyPrice *= 2; item.sellPrice *= 2;
+        return item;
+    }
+    public static Item createRangerQuiver(int level, Rarity rarity) {
+        Item item = new Item("Ranger's Quiver", "Enchanted quiver that multiplies arrows.", Slot.OFFHAND, rarity, WeaponClass.RANGED, EquipmentSet.ARCHER, 1, 2, level);
+        item.statBonuses.put("attack", (int)(4 * rarity.mult * level));
+        item.statBonuses.put("range", (int)(25 * rarity.mult));
+        item.statBonuses.put("speed", (int)(5 * rarity.mult));
+        item.autoPrice(); item.buyPrice *= 2; item.sellPrice *= 2;
+        return item;
+    }
+    public static Item createRangerHood(int level, Rarity rarity) {
+        Item item = new Item("Ranger's Hood", "Hooded helm with enhanced vision.", Slot.HELMET, rarity, WeaponClass.RANGED, EquipmentSet.ARCHER, 2, 1, level);
+        item.statBonuses.put("range", (int)(30 * rarity.mult));
+        item.statBonuses.put("critChance", (int)(6 * rarity.mult));
+        item.statBonuses.put("defence", (int)(3 * rarity.mult * level));
+        item.autoPrice(); item.buyPrice *= 2; item.sellPrice *= 2;
+        return item;
+    }
+    public static Item createRangerCloak(int level, Rarity rarity) {
+        Item item = new Item("Ranger's Cloak", "Forest cloak granting swiftness and stealth.", Slot.CHEST, rarity, WeaponClass.RANGED, EquipmentSet.ARCHER, 2, 3, level);
+        item.statBonuses.put("range", (int)(20 * rarity.mult));
+        item.statBonuses.put("speed", (int)(4 * rarity.mult));
+        item.statBonuses.put("defence", (int)(5 * rarity.mult * level));
+        item.autoPrice(); item.buyPrice *= 2; item.sellPrice *= 2;
+        return item;
+    }
+
     /**
      * Creates an upgraded copy of this item at the next rarity tier.
      * Used by the Forge system.
@@ -588,8 +630,8 @@ public class Item {
         return item;
     }
     
-    public static Item createRangerCloak(int level, Rarity rarity) {
-        Item item = new Item("Ranger Cloak", "Camouflaged for the hunt. Increases mobility.", 
+    public static Item createCamouflageCloak(int level, Rarity rarity) {
+        Item item = new Item("Camouflage Cloak", "Blends with surroundings. Increases mobility.", 
             Slot.CHEST, rarity, WeaponClass.RANGED, 2, 3, level);
         item.statBonuses.put("moveSpeed", (int)(15 * rarity.mult));
         item.statBonuses.put("speed", (int)(2 * rarity.mult));

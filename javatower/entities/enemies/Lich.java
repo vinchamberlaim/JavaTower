@@ -22,6 +22,11 @@ import java.util.ArrayList;
  *   <li><b>Single summon</b> — fallback if only 1 bone pile is nearby.</li>
  * </ul>
  * </p>
+ * <p>
+ * <b>CIS096 relevance:</b> concrete polymorphic specialization of {@link Enemy}.
+ * The class overrides base AI with unique pathing + summoning logic while still
+ * reusing shared combat, stat-scaling, and elite-modifier behaviour.
+ * </p>
  *
  * @author Vincent Chamberlain (2424309)
  * @see Enemy
@@ -40,6 +45,10 @@ public class Lich extends Enemy {
     private static final double FLEE_DIST = 100;
     /** Maximum distance the Lich will travel to reach a bone pile. */
     private static final double BONE_SEEK_RANGE = 350;
+    /** Maximum undead a single Lich can summon per wave (prevents crash from thousands of enemies). */
+    private static final int MAX_SUMMONS_PER_LICH = 12;
+    /** Counter for how many undead this Lich has summoned this wave. */
+    private int summonCount = 0;
 
     public Lich(int waveLevel) {
         super(EnemyType.LICH, waveLevel);
@@ -178,11 +187,15 @@ public class Lich extends Enemy {
     /**
      * MASS RESURRECTION: Converts ALL bone piles within range to UNDEAD HORDE!
      * This is the Lich's ultimate ability - raises an army from all nearby bones!
+     * Capped at MAX_SUMMONS_PER_LICH to prevent performance issues.
      * @param range Maximum distance to consume bone piles
      * @return Number of undead raised
      */
     public int massResurrection(double range) {
         if (getBonePiles() == null || getSiblings() == null) return 0;
+        
+        // Check if this Lich has hit its summon cap
+        if (summonCount >= MAX_SUMMONS_PER_LICH) return 0;
         
         int undeadRaised = 0;
         List<BonePile> pilesToConsume = new ArrayList<>();
@@ -198,13 +211,15 @@ public class Lich extends Enemy {
             }
         }
         
-        // Consume ALL piles and spawn MASSIVE HORDE
+        // Consume piles and spawn horde (capped)
         for (BonePile bp : pilesToConsume) {
+            if (summonCount >= MAX_SUMMONS_PER_LICH) break; // Hit cap, stop summoning
+            
             int tier = bp.consume(bp.getBoneCount());
             
-            // HORDE SIZE: More undead per pile based on tier
+            // HORDE SIZE: More undead per pile based on tier (but capped)
             // Tier 1-2: 2 undead | Tier 3-4: 3 undead | Tier 5+: 4 undead
-            int hordeSize = 2 + (tier / 2);
+            int hordeSize = Math.min(2 + (tier / 2), MAX_SUMMONS_PER_LICH - summonCount);
             
             for (int i = 0; i < hordeSize; i++) {
                 // MIX: 70% Skeletons, 30% Zombies for variety
@@ -220,8 +235,10 @@ public class Lich extends Enemy {
                 undead.setPosition(bp.getX() + offsetX, bp.getY() + offsetY);
                 undead.setSiblings(getSiblings());
                 undead.setBonePiles(getBonePiles());
+                undead.setSummoned(true); // Mark as summoned, not part of wave count
                 getSiblings().add(undead);
                 undeadRaised++;
+                summonCount++;
             }
         }
         

@@ -22,6 +22,11 @@ import java.util.ArrayList;
  * Uses the {@link Forge} system to validate and execute the combination.
  * </p>
  * <p>
+ * <b>CIS096 relevance:</b> demonstrates layered design: UI concerns in this panel,
+ * business rules in {@link Forge}, and item construction in factory classes.
+ * It also showcases validation-first workflow before state mutation.
+ * </p>
+ * <p>
  * Layout: header → gold display → two selection slots (Slot 1 + Slot 2) →
  * FORGE button → scrollable inventory list → Back button.
  * </p>
@@ -37,6 +42,9 @@ public class ForgePanel extends VBox {
     private Item selectedA, selectedB;
     private Label selectALabel, selectBLabel;
     private Button forgeBtn;
+    private ScrollPane scrollPane;
+    private double savedScrollV = 0;
+    private boolean isRefreshing = false;
 
     public ForgePanel(Hero hero, GameGUI gui) {
         this.hero = hero;
@@ -123,11 +131,18 @@ public class ForgePanel extends VBox {
         itemListSection = new VBox(4);
         
         // Wrap item list in ScrollPane so it can scroll if too long
-        ScrollPane scrollPane = new ScrollPane(itemListSection);
+        scrollPane = new ScrollPane(itemListSection);
         scrollPane.setFitToWidth(true);
         scrollPane.setPrefHeight(300); // Fixed height for scrollable area
         scrollPane.setStyle("-fx-background: #1a1a2e; -fx-background-color: #1a1a2e;");
         VBox.setVgrow(scrollPane, Priority.ALWAYS);
+        
+        // Persist scroll position (but not during refresh)
+        scrollPane.vvalueProperty().addListener((obs, oldVal, newVal) -> {
+            if (!isRefreshing) {
+                savedScrollV = newVal.doubleValue();
+            }
+        });
 
         Button backBtn = new Button("Back to Game");
         backBtn.setFont(Font.font("Monospaced", FontWeight.BOLD, 20));
@@ -179,6 +194,7 @@ public class ForgePanel extends VBox {
     }
 
     public void refresh() {
+        isRefreshing = true;
         goldLabel.setText("Gold: " + hero.getGold());
 
         // Update selection labels
@@ -245,6 +261,17 @@ public class ForgePanel extends VBox {
             Label empty = new Label("No items in inventory");
             empty.setStyle("-fx-text-fill: #666;");
             itemListSection.getChildren().add(empty);
+        }
+        
+        // Restore scroll position
+        if (scrollPane != null) {
+            final double targetScroll = savedScrollV;
+            javafx.application.Platform.runLater(() -> {
+                scrollPane.setVvalue(targetScroll);
+                isRefreshing = false;
+            });
+        } else {
+            isRefreshing = false;
         }
     }
 }
