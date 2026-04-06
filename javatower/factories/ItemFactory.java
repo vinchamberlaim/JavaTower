@@ -16,7 +16,7 @@ public class ItemFactory {
 
     /** Creates a random normal (non-set) item. */
     public static Item createRandomItem(int itemLevel, Rarity rarity) {
-        int type = rand.nextInt(24);
+        int type = rand.nextInt(36);
         switch (type) {
             case 0: return Item.createSword(itemLevel, rarity);
             case 1: return Item.createShield(itemLevel, rarity);
@@ -42,6 +42,21 @@ public class ItemFactory {
             case 21: return Item.createMageRobes(itemLevel, rarity);
             case 22: return Item.createDagger(itemLevel, rarity);
             case 23: return Item.createWand(itemLevel, rarity);
+            // New Necromancy items
+            case 24: return Item.createBoneWand(itemLevel, rarity);
+            case 25: return Item.createSkullOffhand(itemLevel, rarity);
+            case 26: return Item.createNecroticAmulet(itemLevel, rarity);
+            case 27: return Item.createGravewalkerBoots(itemLevel, rarity);
+            // New Archer/Ranged items
+            case 28: return Item.createLongbow(itemLevel, rarity);
+            case 29: return Item.createQuiver(itemLevel, rarity);
+            case 30: return Item.createHawkAmulet(itemLevel, rarity);
+            case 31: return Item.createArcherGloves(itemLevel, rarity);
+            // Additional variety
+            case 32: return Item.createSpellbook(itemLevel, rarity);
+            case 33: return Item.createCrystalOrb(itemLevel, rarity);
+            case 34: return Item.createEnchantedRobes(itemLevel, rarity);
+            case 35: return Item.createWizardHat(itemLevel, rarity);
             default: return Item.createSword(itemLevel, rarity);
         }
     }

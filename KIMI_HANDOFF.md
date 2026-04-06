@@ -82,3 +82,37 @@ Pick from these (also listed in `dev_tasks.json`):
 - The project prints `java.sql.SQLException: No suitable driver found` at startup — this is a pre-existing classpath issue with SQLite; the game handles it gracefully with try/catch
 
 ---
+
+## 🧠 NEW: Shared AI Memory Database (April 6, 2026)
+
+We now have a shared SQLite database for persistent memory between AI sessions!
+
+**GitHub Repo:** https://github.com/vinchamberlaim/ai-memories (private)
+
+**Quick Commands:**
+```powershell
+# Search past context
+.\ai_search.ps1 "search term"
+
+# See what Copilot did
+.\ai_search.ps1 -Source copilot -Recent 10
+
+# Add what you learn/do during this session
+.\ai_add_memory.ps1 -Topic "Topic" -Content "What you did" -Source "kimi" -Category "task"
+
+# SYNC WITH CLOUD (do this at start and end of session!)
+.\ai_git_sync.ps1 pull    # Get latest from other devices
+.\ai_git_sync.ps1 push    # Upload your changes
+```
+
+**At END of each session, save a summary:**
+```powershell
+.\ai_add_memory.ps1 -Topic "Session Summary - [DATE]" -Content "Implemented X, fixed Y, learned Z" -Source "kimi" -Category "session" -Importance 8
+.\ai_git_sync.ps1 push    # Don't forget to sync!
+```
+
+**Categories:** feature, task, decision, error, solution, context, session
+
+See `AI_MEMORY_README.md` for full documentation.
+
+---

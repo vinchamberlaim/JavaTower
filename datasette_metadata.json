@@ -1,0 +1,35 @@
+{
+    "title": "AI Memory Database",
+    "description": "Shared memory system for AI assistants (Copilot, Kimi, etc.)",
+    "databases": {
+        "ai_memory": {
+            "tables": {
+                "memories": {
+                    "description": "AI session memories and learnings",
+                    "sortable_columns": ["timestamp", "importance", "source", "category"],
+                    "facets": ["source", "category", "importance"]
+                },
+                "chat_logs": {
+                    "description": "Archived chat session logs",
+                    "sortable_columns": ["date", "source"],
+                    "facets": ["source"]
+                },
+                "tasks": {
+                    "description": "Pending and completed tasks",
+                    "sortable_columns": ["created_at", "status", "priority"],
+                    "facets": ["status", "priority", "assigned_to"]
+                },
+                "decisions": {
+                    "description": "Technical decisions and their rationale",
+                    "sortable_columns": ["timestamp"],
+                    "facets": ["status"]
+                }
+            }
+        }
+    },
+    "plugins": {
+        "datasette-insert-api": {
+            "allow_inserts": true
+        }
+    }
+}

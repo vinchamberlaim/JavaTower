@@ -88,19 +88,44 @@ public class Hero extends Entity {
     // ==================== Ultimate Ability ====================
     /** Whether the hero is currently in RAGE mode (+50 % ATK/DEF). */
     private boolean ultimateActive = false;
-    // ==================== Auto-Cast Class Spells ====================
+    // ==================== Auto-Cast Equipment Set Spells ====================
     /** Cooldown timers for each set's auto-spell. */
     private double holySpellTimer = 0;
     private double deathSpellTimer = 0;
     private double fireSpellTimer = 0;
     private double knightSpellTimer = 0;
 
-    /** Cooldown durations (seconds) for class auto-spells. */
+    /** Cooldown durations (seconds) for set auto-spells. */
     public static final double HOLY_SPELL_CD   = 6.0;
     public static final double DEATH_SPELL_CD  = 5.0;
     public static final double FIRE_SPELL_CD   = 4.0;
     public static final double KNIGHT_SPELL_CD = 5.0;
 
+    // ==================== Weapon Class Spell Timers ====================
+    /** Cooldown timers for weapon class passive spells. */
+    private double necroBoneShieldTimer = 0;
+    private double necroSummonTimer = 0;
+    private double archerVolleyTimer = 0;
+    private double meleeWhirlwindTimer = 0;
+    private double holyConsecrationTimer = 0;
+    private double defenceShieldBlockTimer = 0;
+
+    /** Cooldown durations (seconds) for weapon class spells. */
+    public static final double NECRO_BONESHIELD_CD = 8.0;
+    public static final double NECRO_SUMMON_CD = 12.0;
+    public static final double ARCHER_VOLLEY_CD = 6.0;
+    public static final double MELEE_WHIRLWIND_CD = 5.0;
+    public static final double HOLY_CONSECRATION_CD = 7.0;
+    public static final double DEFENCE_SHIELDBLOCK_CD = 10.0;
+
+    // Class spell active flags
+    private boolean boneShieldActive = false;
+    private double boneShieldDuration = 0;
+    private boolean shieldBlockActive = false;
+    private double shieldBlockDuration = 0;
+    private boolean holyResurrectionUsed = false; // once per floor
+
+    // Getters/setters for spell timers
     public double getHolySpellTimer() { return holySpellTimer; }
     public double getDeathSpellTimer() { return deathSpellTimer; }
     public double getFireSpellTimer() { return fireSpellTimer; }
@@ -115,6 +140,24 @@ public class Hero extends Entity {
         if (deathSpellTimer > 0) deathSpellTimer -= dt;
         if (fireSpellTimer > 0) fireSpellTimer -= dt;
         if (knightSpellTimer > 0) knightSpellTimer -= dt;
+        
+        // Weapon class spell timers
+        if (necroBoneShieldTimer > 0) necroBoneShieldTimer -= dt;
+        if (necroSummonTimer > 0) necroSummonTimer -= dt;
+        if (archerVolleyTimer > 0) archerVolleyTimer -= dt;
+        if (meleeWhirlwindTimer > 0) meleeWhirlwindTimer -= dt;
+        if (holyConsecrationTimer > 0) holyConsecrationTimer -= dt;
+        if (defenceShieldBlockTimer > 0) defenceShieldBlockTimer -= dt;
+        
+        // Duration tracking
+        if (boneShieldDuration > 0) {
+            boneShieldDuration -= dt;
+            if (boneShieldDuration <= 0) boneShieldActive = false;
+        }
+        if (shieldBlockDuration > 0) {
+            shieldBlockDuration -= dt;
+            if (shieldBlockDuration <= 0) shieldBlockActive = false;
+        }
     }
     // ==================== Dodge / Roll ====================
     /** True while the hero is mid-roll (invincible). */
@@ -313,6 +356,10 @@ public class Hero extends Entity {
         }
         
         attackTimer += dt;
+        
+        // Tick all spell timers and process auto-cast class spells
+        tickSpellTimers(dt);
+        processClassAutoSpells(dt, enemies);
 
         // Smooth movement toward click target
         if (moving) {
@@ -423,6 +470,7 @@ public class Hero extends Entity {
      * Calculates and performs an auto-attack on the target enemy.
      * <p>
      * Applies weapon-class skill multiplier, set bonuses (Fire 2pc, Holy 4pc),
+     * class-based bonuses (Necromancy, Archer, Melee, Holy, Defence),
      * crit chance, Death 4pc life-steal, and trains the relevant weapon skill.
      * </p>
      *
@@ -431,18 +479,37 @@ public class Hero extends Entity {
      */
     public int attackEnemy(Enemy target) {
         int baseDamage = getEffectiveAttack();
+        Item[] eq = getEquippedItems();
+        
         // Apply weapon class skill modifier
         WeaponClass wc = weapon != null ? weapon.getWeaponClass() : WeaponClass.MELEE;
         double skillMult = skillProgression.getDamageMultiplier(wc);
         baseDamage = (int)(baseDamage * skillMult);
 
         // Set bonuses: Fire 2pc +25% damage, Holy 4pc +50% vs undead (all enemies are undead)
-        Item[] eq = getEquippedItems();
         baseDamage = (int)(baseDamage * SetBonusManager.getFireDamageBonus(eq));
         baseDamage = (int)(baseDamage * SetBonusManager.getHolyUndeadDamageBonus(eq));
+        
+        // Class-based Holy bonus vs undead
+        baseDamage = (int)(baseDamage * SetBonusManager.getHolyUndeadBonus(eq));
 
-        boolean crit = (Math.random() * 100) < getEffectiveCritChance();
+        // Melee Berserk: damage increases as HP decreases
+        if (SetBonusManager.hasMeleeBerserk(eq)) {
+            double healthPercent = (double)getCurrentHealth() / getEffectiveMaxHealth();
+            double berserkMult = 1.0 + (1.0 - healthPercent) * 0.5; // up to +50% damage
+            baseDamage = (int)(baseDamage * berserkMult);
+        }
+
+        // Apply crit with Archer bonus
+        int critChance = getEffectiveCritChance() + SetBonusManager.getArcherCritBonus(eq);
+        boolean crit = (Math.random() * 100) < critChance;
         int damage = crit ? (int)(baseDamage * 1.5) : baseDamage;
+        
+        // Divine Shield - chance to double damage
+        if (Math.random() * 100 < SetBonusManager.getHolyDivineShieldChance(eq)) {
+            damage *= 2;
+        }
+        
         int dealt = target.takeDamage(damage);
         lastDamageDealt = dealt;
         lastAttackCrit = crit;
@@ -456,11 +523,124 @@ public class Hero extends Entity {
                 setCurrentHealth(Math.min(getEffectiveMaxHealth(), getCurrentHealth() + healAmount));
             }
         }
+        
+        // Necromancy class life drain
+        double necroDrain = SetBonusManager.getNecromancyLifeDrain(eq);
+        if (necroDrain > 0) {
+            int healAmount = (int)(dealt * necroDrain);
+            if (healAmount > 0) {
+                setCurrentHealth(Math.min(getEffectiveMaxHealth(), getCurrentHealth() + healAmount));
+            }
+        }
 
         // Train weapon skill — 1 XP per hit
         skillProgression.addXP(wc, 1.0);
 
         return dealt;
+    }
+
+    /**
+     * Process auto-cast class spells based on equipped weapon class items.
+     * More items of a class = more powerful passive effects.
+     */
+    public void processClassAutoSpells(double dt, List<Enemy> enemies) {
+        if (enemies == null || enemies.isEmpty()) return;
+        
+        Item[] eq = getEquippedItems();
+        
+        // ========== NECROMANCY SPELLS ==========
+        // Bone Shield - periodic damage absorption
+        if (SetBonusManager.hasNecromancyBoneShield(eq) && necroBoneShieldTimer <= 0) {
+            boneShieldActive = true;
+            boneShieldDuration = 4.0; // 4 seconds of damage absorption
+            necroBoneShieldTimer = NECRO_BONESHIELD_CD;
+            // Bone shield absorbs next hit completely
+        }
+        
+        // Summon Army - periodic skeleton spawn (simulated as damage to nearest enemy)
+        if (SetBonusManager.hasNecromancySummonArmy(eq) && necroSummonTimer <= 0) {
+            // Find nearest enemy and deal summon damage
+            Enemy nearest = findNearestEnemy(enemies);
+            if (nearest != null) {
+                int summonDamage = (int)(getEffectiveAttack() * 0.5); // Skeletons deal 50% hero damage
+                nearest.takeDamage(summonDamage);
+            }
+            necroSummonTimer = NECRO_SUMMON_CD;
+        }
+        
+        // ========== ARCHER SPELLS ==========
+        // Volley - periodic ranged AoE
+        if (SetBonusManager.getArcherExtraProjectiles(eq) > 0 && archerVolleyTimer <= 0) {
+            // Volley fires arrows at multiple enemies
+            int arrowCount = SetBonusManager.getArcherExtraProjectiles(eq) + 1;
+            int arrowsFired = 0;
+            for (Enemy e : enemies) {
+                if (!e.isAlive()) continue;
+                double dist = distanceTo(e);
+                if (dist <= getEffectiveRange() + e.getRadius()) {
+                    int volleyDamage = (int)(getEffectiveAttack() * 0.4); // 40% damage per arrow
+                    e.takeDamage(volleyDamage);
+                    arrowsFired++;
+                    if (arrowsFired >= arrowCount * 2) break; // Fire multiple arrows per volley
+                }
+            }
+            archerVolleyTimer = ARCHER_VOLLEY_CD;
+        }
+        
+        // ========== MELEE SPELLS ==========
+        // Whirlwind - periodic AoE spin attack
+        if (SetBonusManager.hasMeleeWhirlwind(eq) && meleeWhirlwindTimer <= 0) {
+            // Damage all nearby enemies
+            int whirlwindDamage = (int)(getEffectiveAttack() * 0.8);
+            for (Enemy e : enemies) {
+                if (!e.isAlive()) continue;
+                double dist = distanceTo(e);
+                if (dist <= Constants.MELEE_RANGE + 30 + e.getRadius()) { // Slightly larger range
+                    e.takeDamage(whirlwindDamage);
+                }
+            }
+            meleeWhirlwindTimer = MELEE_WHIRLWIND_CD;
+        }
+        
+        // ========== HOLY SPELLS ==========
+        // Consecration - periodic damage aura
+        if (SetBonusManager.hasHolyConsecration(eq) && holyConsecrationTimer <= 0) {
+            // Damage all nearby undead (all enemies are undead in this game)
+            int consecrationDamage = (int)(getEffectiveAttack() * 0.3);
+            for (Enemy e : enemies) {
+                if (!e.isAlive()) continue;
+                double dist = distanceTo(e);
+                if (dist <= Constants.MELEE_RANGE + 40 + e.getRadius()) {
+                    e.takeDamage(consecrationDamage);
+                }
+            }
+            holyConsecrationTimer = HOLY_CONSECRATION_CD;
+        }
+        
+        // ========== DEFENCE SPELLS ==========
+        // Shield Block - periodic complete damage negation
+        if (SetBonusManager.hasDefenceShieldBlock(eq) && defenceShieldBlockTimer <= 0) {
+            shieldBlockActive = true;
+            shieldBlockDuration = 2.0; // 2 seconds of blocking
+            defenceShieldBlockTimer = DEFENCE_SHIELDBLOCK_CD;
+        }
+    }
+    
+    /**
+     * Helper to find nearest living enemy.
+     */
+    private Enemy findNearestEnemy(List<Enemy> enemies) {
+        Enemy nearest = null;
+        double minDist = Double.MAX_VALUE;
+        for (Enemy e : enemies) {
+            if (!e.isAlive()) continue;
+            double d = distanceTo(e);
+            if (d < minDist) {
+                minDist = d;
+                nearest = e;
+            }
+        }
+        return nearest;
     }
 
     public int getLastDamageDealt() { return lastDamageDealt; }
@@ -632,24 +812,52 @@ public class Hero extends Entity {
     }
 
     /**
-     * Applies damage to the hero, reduced by defence + Defence skill bonus. Trains Defence skill.
+     * Applies damage to the hero, reduced by defence + Defence skill bonus + Defence class bonus. Trains Defence skill.
      * During roll: INVINCIBLE (no damage taken).
+     * Shield Block: Chance to negate damage.
      */
     @Override
     public int takeDamage(int damage) {
         // Invincible during roll
         if (isRolling) return 0;
         
-        // Effective defence = base + items + skill bonus
+        Item[] eq = getEquippedItems();
+        
+        // Shield Block active - negate damage
+        if (shieldBlockActive) {
+            return 0;
+        }
+        
+        // Divine Shield chance to negate
+        if (Math.random() * 100 < SetBonusManager.getHolyDivineShieldChance(eq)) {
+            return 0; // Damage negated by divine intervention
+        }
+        
+        // Apply Defence class damage reduction
+        double damageReduction = SetBonusManager.getDefenceDamageReduction(eq);
+        damage = (int)(damage * (1.0 - damageReduction));
+        
+        // Effective defence = base + items + skill bonus + Defence class HP bonus
         int totalDef = getEffectiveDefence() + skillProgression.getDefenceBonus();
         // Knight 2pc: +25% defence
-        totalDef = (int)(totalDef * SetBonusManager.getKnightDefenceBonus(getEquippedItems()));
+        totalDef = (int)(totalDef * SetBonusManager.getKnightDefenceBonus(eq));
         int reduced = Math.max(1, damage - totalDef);
         setCurrentHealth(getCurrentHealth() - reduced);
+        
+        // Reflect damage back to attacker (if we track the attacker)
+        // This would need the attacker reference - stored for potential future use
+        
         if (getCurrentHealth() <= 0) {
-            setCurrentHealth(0);
-            setAlive(false);
-            onDeath();
+            // Holy Resurrection - revive once per floor
+            if (SetBonusManager.hasHolyResurrection(eq) && !holyResurrectionUsed) {
+                holyResurrectionUsed = true;
+                setCurrentHealth(getEffectiveMaxHealth() / 2);
+                // Could add visual effect here
+            } else {
+                setCurrentHealth(0);
+                setAlive(false);
+                onDeath();
+            }
         }
         // Train defence skill when taking hits (0.5 XP per hit taken)
         if (getEquippedOfClass(WeaponClass.DEFENCE) != null) {
@@ -659,16 +867,19 @@ public class Hero extends Entity {
     }
 
     /**
-     * Heals the hero, boosted by Holy skill. Trains Holy skill.
+     * Heals the hero, boosted by Holy skill and Holy class items. Trains Holy skill.
      */
     @Override
     public void heal(int amount) {
         if (!isAlive()) return;
+        Item[] eq = getEquippedItems();
         // Add flat heal power from equipment
         amount += getEquipmentHealBonus();
         double holyMult = skillProgression.getHolyHealBonus();
         // Holy 2pc set bonus: +20% heal
-        holyMult *= SetBonusManager.getHolyHealBonus(getEquippedItems());
+        holyMult *= SetBonusManager.getHolyHealBonus(eq);
+        // Holy class heal bonus
+        holyMult = SetBonusManager.getHolyHealPower(eq);
         int boostedAmount = (int)(amount * holyMult);
         setCurrentHealth(Math.min(getEffectiveMaxHealth(), getCurrentHealth() + boostedAmount));
         skillProgression.addXP(WeaponClass.HOLY, 1.0);
@@ -739,9 +950,9 @@ public class Hero extends Entity {
         return maxMana + getEquipmentStat("mana");
     }
 
-    /** Base max HP + equipped health bonuses. */
+    /** Base max HP + equipped health bonuses + Defence class bonus. */
     public int getEffectiveMaxHealth() {
-        return getMaxHealth() + getEquipmentStat("health");
+        return getMaxHealth() + getEquipmentStat("health") + SetBonusManager.getDefenceHealthBonus(getEquippedItems());
     }
 
     /** Total heal power bonus from items (flat). */
@@ -790,7 +1001,7 @@ public class Hero extends Entity {
     public Item getAmulet() { return amulet; }
     public Item[] getRings() { return rings; }
 
-    /** Effective attack range — melee base, plus ranged weapon range stat and ranged skill bonus. */
+    /** Effective attack range — melee base, plus ranged weapon range stat, ranged skill bonus, and Archer class bonus. */
     public double getEffectiveRange() {
         double range = Constants.MELEE_RANGE;
         if (weapon != null) {
@@ -802,16 +1013,24 @@ public class Hero extends Entity {
             if (rangeBonus != null) range += rangeBonus;
         }
         range += skillProgression.getRangedRangeBonus();
+        
+        // Archer class range bonus
+        Item[] eq = getEquippedItems();
+        range *= (1.0 + SetBonusManager.getArcherRangeBonus(eq));
+        
         return range;
     }
 
-    /** Effective attack cooldown — base minus item speed bonus, melee skill, and Knight 4pc. */
+    /** Effective attack cooldown — base minus item speed bonus, melee skill, Knight 4pc, and Melee class bonus. */
     public double getEffectiveCooldown() {
         double cd = attackCooldown;
+        Item[] eq = getEquippedItems();
         // Item "speed" stat: each point = 0.02s faster
         cd -= getEquipmentStat("speed") * 0.02;
         cd -= skillProgression.getMeleeSpeedBonus();
-        cd -= SetBonusManager.getKnightSpeedBonus(getEquippedItems());
+        cd -= SetBonusManager.getKnightSpeedBonus(eq);
+        // Melee class attack speed bonus
+        cd -= SetBonusManager.getMeleeAttackSpeed(eq);
         return Math.max(0.15, cd); // minimum 0.15s
     }
     public SkillTree getCombatTree() { return combatTree; }
@@ -895,6 +1114,23 @@ public class Hero extends Entity {
     // Ultimate ability methods
     public void setUltimateActive(boolean active) { this.ultimateActive = active; }
     public boolean isUltimateActive() { return ultimateActive; }
+    
+    // ========== Class Spell Timer Getters (for UI) ==========
+    public double getNecroBoneShieldTimer() { return necroBoneShieldTimer; }
+    public double getNecroSummonTimer() { return necroSummonTimer; }
+    public double getArcherVolleyTimer() { return archerVolleyTimer; }
+    public double getMeleeWhirlwindTimer() { return meleeWhirlwindTimer; }
+    public double getHolyConsecrationTimer() { return holyConsecrationTimer; }
+    public double getDefenceShieldBlockTimer() { return defenceShieldBlockTimer; }
+    
+    public boolean isBoneShieldActive() { return boneShieldActive; }
+    public boolean isShieldBlockActive() { return shieldBlockActive; }
+    public double getBoneShieldDuration() { return boneShieldDuration; }
+    public double getShieldBlockDuration() { return shieldBlockDuration; }
+    
+    /** Resets Holy Resurrection for new floor */
+    public void resetHolyResurrection() { holyResurrectionUsed = false; }
+    public boolean isHolyResurrectionUsed() { return holyResurrectionUsed; }
     
     // Equipment getters omitted for brevity
 }

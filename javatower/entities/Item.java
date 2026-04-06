@@ -500,6 +500,113 @@ public class Item {
         return item;
     }
 
+    // ========== ADDITIONAL NECROMANCY ITEMS ==========
+    public static Item createBoneWand(int level, Rarity rarity) {
+        Item item = new Item("Bone Wand", "Crafted from the femur of a lich. Crackles with death energy.", 
+            Slot.WEAPON, rarity, WeaponClass.NECROMANCY, 1, 2, level);
+        item.statBonuses.put("attack", (int)(5 * rarity.mult * level));
+        item.statBonuses.put("mana", (int)(10 * rarity.mult * level));
+        item.statBonuses.put("critChance", (int)(2 * rarity.mult * level));
+        item.autoPrice();
+        return item;
+    }
+    
+    public static Item createSkullOffhand(int level, Rarity rarity) {
+        Item item = new Item("Skull of Whispering", "A skull that mutters dark secrets. Grants necromantic power.", 
+            Slot.OFFHAND, rarity, WeaponClass.NECROMANCY, 1, 2, level);
+        item.statBonuses.put("mana", (int)(15 * rarity.mult * level));
+        item.statBonuses.put("attack", (int)(3 * rarity.mult * level));
+        item.autoPrice();
+        return item;
+    }
+    
+    public static Item createNecroticAmulet(int level, Rarity rarity) {
+        Item item = new Item("Necrotic Amulet", "Pulses with unholy energy. Strengthens the connection to death.", 
+            Slot.AMULET, rarity, WeaponClass.NECROMANCY, 1, 1, level);
+        item.statBonuses.put("mana", (int)(12 * rarity.mult * level));
+        item.statBonuses.put("attack", (int)(4 * rarity.mult * level));
+        item.autoPrice();
+        return item;
+    }
+    
+    public static Item createGravewalkerBoots(int level, Rarity rarity) {
+        Item item = new Item("Gravewalker Boots", "Silent as death. Grants spectral movement.", 
+            Slot.BOOTS, rarity, WeaponClass.NECROMANCY, 2, 1, level);
+        item.statBonuses.put("speed", (int)(2 * rarity.mult));
+        item.statBonuses.put("mana", (int)(6 * rarity.mult * level));
+        item.statBonuses.put("moveSpeed", (int)(8 * rarity.mult));
+        item.autoPrice();
+        return item;
+    }
+    
+    public static Item createDeathShroud(int level, Rarity rarity) {
+        Item item = new Item("Death Shroud", "A cloak woven from shadow essence. Protects against harm.", 
+            Slot.CHEST, rarity, WeaponClass.NECROMANCY, 2, 3, level);
+        item.statBonuses.put("defence", (int)(6 * rarity.mult * level));
+        item.statBonuses.put("mana", (int)(15 * rarity.mult * level));
+        item.autoPrice();
+        return item;
+    }
+
+    // ========== ADDITIONAL ARCHER/RANGED ITEMS ==========
+    public static Item createLongbow(int level, Rarity rarity) {
+        Item item = new Item("Longbow", "A masterfully crafted longbow. Incredible range and precision.", 
+            Slot.WEAPON, rarity, WeaponClass.RANGED, 1, 4, level);
+        item.statBonuses.put("attack", (int)(9 * rarity.mult * level));
+        item.statBonuses.put("range", (int)(40 * rarity.mult));
+        item.statBonuses.put("critChance", (int)(4 * rarity.mult * level));
+        item.twoHanded = true;
+        item.autoPrice();
+        return item;
+    }
+    
+    public static Item createQuiver(int level, Rarity rarity) {
+        Item item = new Item("Quiver of Endless Arrows", "Never seems to run out. Increases attack speed.", 
+            Slot.OFFHAND, rarity, WeaponClass.RANGED, 1, 2, level);
+        item.statBonuses.put("speed", (int)(4 * rarity.mult));
+        item.statBonuses.put("attack", (int)(3 * rarity.mult * level));
+        item.autoPrice();
+        return item;
+    }
+    
+    public static Item createHawkAmulet(int level, Rarity rarity) {
+        Item item = new Item("Hawk's Eye Amulet", "Grants the precision of a hunting bird.", 
+            Slot.AMULET, rarity, WeaponClass.RANGED, 1, 1, level);
+        item.statBonuses.put("critChance", (int)(5 * rarity.mult * level));
+        item.statBonuses.put("range", (int)(15 * rarity.mult));
+        item.autoPrice();
+        return item;
+    }
+    
+    public static Item createArcherGloves(int level, Rarity rarity) {
+        Item item = new Item("Archer's Gloves", "Reinforced fingertips for quick, accurate shots.", 
+            Slot.GLOVES, rarity, WeaponClass.RANGED, 2, 1, level);
+        item.statBonuses.put("speed", (int)(3 * rarity.mult));
+        item.statBonuses.put("critChance", (int)(3 * rarity.mult * level));
+        item.statBonuses.put("attack", (int)(2 * rarity.mult * level));
+        item.autoPrice();
+        return item;
+    }
+    
+    public static Item createRangerCloak(int level, Rarity rarity) {
+        Item item = new Item("Ranger Cloak", "Camouflaged for the hunt. Increases mobility.", 
+            Slot.CHEST, rarity, WeaponClass.RANGED, 2, 3, level);
+        item.statBonuses.put("moveSpeed", (int)(15 * rarity.mult));
+        item.statBonuses.put("speed", (int)(2 * rarity.mult));
+        item.statBonuses.put("defence", (int)(5 * rarity.mult * level));
+        item.autoPrice();
+        return item;
+    }
+    
+    public static Item createHunterHelm(int level, Rarity rarity) {
+        Item item = new Item("Hunter's Helm", "Lightweight headgear with enhanced vision.", 
+            Slot.HELMET, rarity, WeaponClass.RANGED, 2, 1, level);
+        item.statBonuses.put("range", (int)(20 * rarity.mult));
+        item.statBonuses.put("critChance", (int)(2 * rarity.mult * level));
+        item.autoPrice();
+        return item;
+    }
+
     // Getters and setters
     public String getName() { return name; }
     public String getDescription() { return description; }
