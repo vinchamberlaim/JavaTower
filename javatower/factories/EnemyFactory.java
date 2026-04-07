@@ -34,6 +34,12 @@ public class EnemyFactory {
                 enemy = new javatower.entities.enemies.DeathKnight(waveLevel); break;
             case LICH:
                 enemy = new javatower.entities.enemies.Lich(waveLevel); break;
+            case CULTIST:
+                enemy = new javatower.entities.enemies.Cultist(waveLevel); break;
+            case DEEP_ONE:
+                enemy = new javatower.entities.enemies.DeepOne(waveLevel); break;
+            case SHOGGOTH:
+                enemy = new javatower.entities.enemies.Shoggoth(waveLevel); break;
             case BONE_COLOSSUS:
                 enemy = new javatower.entities.enemies.BoneColossus(waveLevel); break;
             case NECROMANCER_KING:
@@ -189,16 +195,79 @@ public class EnemyFactory {
             addN(enemies, EnemyType.DEATH_KNIGHT, w, 5);
         }
         
-        // Apply count multiplier from wave modifier
-        if (forcedCount > 0 && !enemies.isEmpty()) {
-            // Scale enemies to match forced count (approximate by duplicating)
-            while (enemies.size() < forcedCount) {
-                Enemy template = enemies.get(enemies.size() % enemies.size());
+        // Procedural fallback for undefined/late waves so content keeps scaling.
+        int targetCount = forcedCount > 0 ? forcedCount : Math.max(6, 5 + waveNumber * 2);
+        if (enemies.isEmpty()) {
+            enemies = createProceduralWave(waveNumber, targetCount, modifier);
+        }
+
+        // Apply count scaling up/down to match targetCount.
+        if (targetCount > 0 && !enemies.isEmpty()) {
+            while (enemies.size() < targetCount) {
+                Enemy template = enemies.get((int)(Math.random() * enemies.size()));
                 enemies.add(createEnemy(template.getEnemyType(), waveNumber, modifier));
+            }
+            while (enemies.size() > targetCount) {
+                enemies.remove(enemies.size() - 1);
             }
         }
         
         return enemies;
+    }
+
+    /**
+     * Generates a scaling enemy mix for late/undefined waves.
+     */
+    private static List<Enemy> createProceduralWave(int waveNumber, int count, WaveModifier modifier) {
+        List<Enemy> out = new ArrayList<>();
+        int n = Math.max(1, count);
+
+        // Expand enemy pool as waves increase.
+        List<EnemyType> pool = new ArrayList<>();
+        pool.add(EnemyType.ZOMBIE);
+        pool.add(EnemyType.SKELETON);
+        pool.add(EnemyType.GHOUL);
+        if (waveNumber >= 7) {
+            pool.add(EnemyType.WIGHT);
+            pool.add(EnemyType.WRAITH);
+        }
+        if (waveNumber >= 12) {
+            pool.add(EnemyType.REVENANT);
+            pool.add(EnemyType.DEATH_KNIGHT);
+        }
+        if (waveNumber >= 16) {
+            pool.add(EnemyType.LICH);
+        }
+        if (waveNumber >= 22) {
+            pool.add(EnemyType.BONE_COLOSSUS);
+        }
+
+        // Lovecraft set unlocks deeper into endless waves.
+        if (waveNumber >= 28) {
+            pool.add(EnemyType.CULTIST);
+        }
+        if (waveNumber >= 34) {
+            pool.add(EnemyType.DEEP_ONE);
+        }
+        if (waveNumber >= 42) {
+            pool.add(EnemyType.SHOGGOTH);
+        }
+
+        for (int i = 0; i < n; i++) {
+            EnemyType pick = pool.get((int)(Math.random() * pool.size()));
+
+            // Bias heavier enemies later in the wave to ramp pressure.
+            if (waveNumber >= 34 && i > n * 0.60 && Math.random() < 0.30) {
+                pick = EnemyType.DEEP_ONE;
+            }
+            if (waveNumber >= 42 && i > n * 0.80 && Math.random() < 0.22) {
+                pick = EnemyType.SHOGGOTH;
+            }
+
+            out.add(createEnemy(pick, waveNumber, modifier));
+        }
+
+        return out;
     }
 
     private static void addN(List<Enemy> list, EnemyType type, int wave, int count) {
@@ -216,7 +285,11 @@ public class EnemyFactory {
             case 15: return createEnemy(EnemyType.LICH, waveNumber);
             case 20: return createEnemy(EnemyType.BONE_COLOSSUS, waveNumber);
             case 25: return createEnemy(EnemyType.BONE_COLOSSUS, waveNumber);
-            default: return createEnemy(EnemyType.REVENANT, waveNumber);
+            default:
+                if (waveNumber >= 45) return createEnemy(EnemyType.SHOGGOTH, waveNumber);
+                if (waveNumber >= 35) return createEnemy(EnemyType.DEEP_ONE, waveNumber);
+                if (waveNumber >= 30) return createEnemy(EnemyType.CULTIST, waveNumber);
+                return createEnemy(EnemyType.REVENANT, waveNumber);
         }
     }
 

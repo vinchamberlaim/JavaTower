@@ -45,6 +45,9 @@ public class PixelArtRenderer {
             case REVENANT: drawRevenant(gc, x, y - bobY, scale, enemy); break;
             case DEATH_KNIGHT: drawDeathKnight(gc, x, y - bobY, scale, enemy); break;
             case LICH: drawLich(gc, x, y - bobY, scale, enemy); break;
+            case CULTIST: drawCultist(gc, x, y - bobY, scale, enemy); break;
+            case DEEP_ONE: drawDeepOne(gc, x, y - bobY, scale, enemy); break;
+            case SHOGGOTH: drawShoggoth(gc, x, y - bobY, scale, enemy); break;
             case BONE_COLOSSUS: drawBoneColossus(gc, x, y - bobY, scale, enemy); break;
             case NECROMANCER_KING: drawNecromancerKing(gc, x, y - bobY, scale, enemy); break;
             default: drawDefaultEnemy(gc, x, y - bobY, scale, enemy);
@@ -293,6 +296,44 @@ public class PixelArtRenderer {
         gc.fillRect(x - 3*scale, y - 7*scale + bob, 6*scale, 3*scale);
         gc.fillRect(x - 2*scale, y - 9*scale + bob, 1*scale, 3*scale);
         gc.fillRect(x + 1*scale, y - 9*scale + bob, 1*scale, 3*scale);
+    }
+    
+    private void drawCultist(GraphicsContext gc, double x, double y, double scale, Enemy e) {
+        Color robe = Color.web("#2d1b4d");
+        Color eye = Color.web("#34d399");
+        double bob = getBobOffset() * 2;
+        gc.setFill(robe);
+        gc.fillRect(x - 4 * scale, y, 8 * scale, 11 * scale);
+        gc.fillRect(x - 5 * scale, y - 5 * scale + bob, 10 * scale, 6 * scale);
+        gc.setFill(eye);
+        gc.fillRect(x - 2 * scale, y - 2 * scale + bob, 1.5 * scale, 1.5 * scale);
+        gc.fillRect(x + 0.5 * scale, y - 2 * scale + bob, 1.5 * scale, 1.5 * scale);
+    }
+    
+    private void drawDeepOne(GraphicsContext gc, double x, double y, double scale, Enemy e) {
+        Color skin = Color.web("#0f766e");
+        Color fin = Color.web("#134e4a");
+        double bob = getBobOffset() * 1.5;
+        gc.setFill(skin);
+        gc.fillRect(x - 5 * scale, y + 2 * scale, 10 * scale, 9 * scale);
+        gc.fillRect(x - 4 * scale, y - 4 * scale + bob, 8 * scale, 7 * scale);
+        gc.setFill(fin);
+        gc.fillRect(x - 7 * scale, y + 2 * scale, 2 * scale, 5 * scale);
+        gc.fillRect(x + 5 * scale, y + 2 * scale, 2 * scale, 5 * scale);
+        gc.fillRect(x - 1 * scale, y - 6 * scale + bob, 2 * scale, 2 * scale);
+    }
+    
+    private void drawShoggoth(GraphicsContext gc, double x, double y, double scale, Enemy e) {
+        Color mass = Color.web("#111827");
+        Color glow = Color.web("#22d3ee");
+        double bob = getBobOffset() * 1.0;
+        gc.setFill(mass);
+        gc.fillRect(x - 8 * scale, y - 1 * scale, 16 * scale, 12 * scale);
+        gc.fillRect(x - 7 * scale, y - 6 * scale + bob, 14 * scale, 6 * scale);
+        gc.setFill(glow);
+        gc.fillRect(x - 4 * scale, y - 3 * scale + bob, 2 * scale, 2 * scale);
+        gc.fillRect(x - 1 * scale, y - 2 * scale + bob, 2 * scale, 2 * scale);
+        gc.fillRect(x + 2 * scale, y - 3 * scale + bob, 2 * scale, 2 * scale);
     }
     
     private void drawBoneColossus(GraphicsContext gc, double x, double y, double scale, Enemy e) {

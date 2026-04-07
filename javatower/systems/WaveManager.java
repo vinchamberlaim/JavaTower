@@ -11,6 +11,8 @@ import javatower.util.Logger;
  * Supports random wave modifiers.
  */
 public class WaveManager {
+    /** Hard cap to prevent runaway wave sizes/performance collapse. */
+    public static final int MAX_WAVE_ENEMIES = 1000;
     private int currentWave = 1;
     private int enemiesRemaining = 0;
     private List<Enemy> activeEnemies = new ArrayList<>();
@@ -55,6 +57,7 @@ public class WaveManager {
         
         // Apply count multiplier from modifier
         int count = (int)(getEnemyCount() * currentModifier.getEnemyCountMultiplier());
+        count = Math.min(MAX_WAVE_ENEMIES, Math.max(1, count));
         return EnemyFactory.createWaveEnemies(currentWave, count, currentModifier);
     }
 
@@ -85,7 +88,9 @@ public class WaveManager {
      * Returns the number of enemies for the wave.
      */
     public int getEnemyCount() {
-        return 5 + (currentWave * 2);
+        // Progressive scaling with stronger late-wave ramp, capped for stability.
+        int scaled = 6 + (currentWave * 3) + ((currentWave * currentWave) / 18);
+        return Math.min(MAX_WAVE_ENEMIES, scaled);
     }
 
     // Getters

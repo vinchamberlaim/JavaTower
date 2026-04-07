@@ -11,11 +11,14 @@ javatower\entities\Hero.java
 javatower\entities\Item.java
 javatower\entities\Tower.java
 javatower\entities\enemies\BoneColossus.java
+javatower\entities\enemies\Cultist.java
 javatower\entities\enemies\DeathKnight.java
+javatower\entities\enemies\DeepOne.java
 javatower\entities\enemies\Ghoul.java
 javatower\entities\enemies\Lich.java
 javatower\entities\enemies\NecromancerKing.java
 javatower\entities\enemies\Revenant.java
+javatower\entities\enemies\Shoggoth.java
 javatower\entities\enemies\Skeleton.java
 javatower\entities\enemies\Wight.java
 javatower\entities\enemies\Wraith.java

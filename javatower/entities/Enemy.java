@@ -56,6 +56,12 @@ public abstract class Enemy extends Entity {
         DEATH_KNIGHT(7, 120, 15, 12, 60, 40),
         /** Tier 8 — ranged summoner mini-boss with mass-resurrection. */
         LICH(8, 70, 20, 6, 80, 50),
+        /** Tier 8 — eldritch cult caster. */
+        CULTIST(8, 85, 22, 7, 95, 58),
+        /** Tier 9 — amphibious abyssal brute. */
+        DEEP_ONE(9, 170, 20, 14, 120, 82),
+        /** Tier 10 — unstable cosmic horror juggernaut. */
+        SHOGGOTH(10, 320, 28, 18, 180, 130),
         /** Tier 9 — colossal melee mini-boss. */
         BONE_COLOSSUS(9, 200, 18, 15, 100, 70),
         /** Tier 10 — the final boss with dual-weapon AI. */
@@ -180,6 +186,22 @@ public abstract class Enemy extends Entity {
                 speed = Constants.ENEMY_SPEED_SLOW;
                 attackRange = 180;
                 setRadius(Constants.ENEMY_RADIUS_LARGE);
+                isMiniBoss = true;
+                break;
+            case CULTIST:
+                speed = Constants.ENEMY_SPEED_NORMAL;
+                attackRange = 200;
+                setRadius(Constants.ENEMY_RADIUS_MEDIUM);
+                break;
+            case DEEP_ONE:
+                speed = Constants.ENEMY_SPEED_NORMAL * 0.9;
+                attackRange = 95;
+                setRadius(Constants.ENEMY_RADIUS_LARGE);
+                break;
+            case SHOGGOTH:
+                speed = Constants.ENEMY_SPEED_SLOW * 0.8;
+                attackRange = 120;
+                setRadius(Constants.ENEMY_RADIUS_BOSS);
                 isMiniBoss = true;
                 break;
             case BONE_COLOSSUS:
