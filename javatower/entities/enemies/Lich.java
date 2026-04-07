@@ -145,8 +145,45 @@ public class Lich extends Enemy {
                 }
             } else if (summonFromBones(250) != null) {
                 summonTimer = 0;
+            } else {
+                // No usable bones nearby: still summon directly so Lich remains active.
+                int raised = summonDirectMinions(hero, 1 + (int)(Math.random() * 2));
+                if (raised > 0) {
+                    summonTimer = 0;
+                }
             }
         }
+    }
+
+    /**
+     * Fallback summon that does not require bone piles.
+     * Keeps Lich gameplay interesting on maps/runs with low corpse density.
+     */
+    private int summonDirectMinions(Hero hero, int desiredCount) {
+        if (getSiblings() == null || hero == null) return 0;
+        if (summonCount >= MAX_SUMMONS_PER_LICH) return 0;
+
+        int maxAllowed = Math.min(desiredCount, MAX_SUMMONS_PER_LICH - summonCount);
+        int raised = 0;
+        for (int i = 0; i < maxAllowed; i++) {
+            EnemyType spawnType = Math.random() < 0.65 ? EnemyType.SKELETON : EnemyType.ZOMBIE;
+            Enemy undead = javatower.factories.EnemyFactory.createEnemy(spawnType, getWaveLevel());
+
+            // Spawn between hero and lich, with random spread.
+            double midX = (getX() + hero.getX()) * 0.5;
+            double midY = (getY() + hero.getY()) * 0.5;
+            double angle = Math.random() * Math.PI * 2;
+            double dist = 20 + Math.random() * 60;
+            undead.setPosition(midX + Math.cos(angle) * dist, midY + Math.sin(angle) * dist);
+
+            undead.setSiblings(getSiblings());
+            undead.setBonePiles(getBonePiles());
+            undead.setSummoned(true);
+            getSiblings().add(undead);
+            summonCount++;
+            raised++;
+        }
+        return raised;
     }
     
     /** Count bone piles within range for mass resurrection decision. */

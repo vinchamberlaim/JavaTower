@@ -88,6 +88,10 @@ public class Hero extends Entity {
     private double archerSkillRangeBonus = 0;
     /** Necromancer: Extra summon damage %. */
     private double necroSummonBonus = 0;
+    /** Necromancer: Army summon passive unlocked from skill tree (n4a/n5). */
+    private boolean necroSummonActive = false;
+    /** Necromancer: Corpse explosion passive unlocked from skill tree (n3c). */
+    private boolean necroCorpseExplosionActive = false;
     /** Paladin: Extra heal power %. */
     private double paladinHealBonus = 0;
     /** Pyromancer: Extra fire damage %. */
@@ -335,19 +339,25 @@ public class Hero extends Entity {
         necromancerTree.addNode(new javatower.systems.SkillNode("n3b", "Life Tap", "🩸 +20 Mana, +5 ATK", "necromancer", 2,
                 java.util.List.of("n2a"), Map.of("maxMana", 20, "attack", 5), null));
         necromancerTree.addNode(new javatower.systems.SkillNode("n3c", "Corpse Explosion", "💥 +6 ATK, AoE on kill", "necromancer", 2,
-                java.util.List.of("n2b"), Map.of("attack", 6), null));
+            java.util.List.of("n2b"), Map.of("attack", 6), () -> self.necroCorpseExplosionActive = true));
         necromancerTree.addNode(new javatower.systems.SkillNode("n3d", "Unholy Armor", "🦴🦴 +10 DEF, +20 HP", "necromancer", 2,
                 java.util.List.of("n2b"), Map.of("defence", 10, "maxHealth", 20), null));
         
         // Tier 4
         necromancerTree.addNode(new javatower.systems.SkillNode("n4a", "Army of Dead", "☠️ +50% Summon DMG", "necromancer", 3,
-                java.util.List.of("n3a", "n3b"), Map.of("maxMana", 25), () -> self.necroSummonBonus += 0.50));
+            java.util.List.of("n3a", "n3b"), Map.of("maxMana", 25), () -> {
+                self.necroSummonBonus += 0.50;
+                self.necroSummonActive = true;
+            }));
         necromancerTree.addNode(new javatower.systems.SkillNode("n4b", "Death Coil", "💀⚡ +10 ATK, lifesteal", "necromancer", 3,
                 java.util.List.of("n3c", "n3d"), Map.of("attack", 10, "maxHealth", 25), null));
         
         // Tier 5
         necromancerTree.addNode(new javatower.systems.SkillNode("n5", "Lich King", "👑💀 +100% Summon, +30 Mana", "necromancer", 4,
-                java.util.List.of("n4a", "n4b"), Map.of("maxMana", 30, "attack", 10), () -> self.necroSummonBonus += 1.0));
+                java.util.List.of("n4a", "n4b"), Map.of("maxMana", 30, "attack", 10), () -> {
+                    self.necroSummonBonus += 1.0;
+                    self.necroSummonActive = true;
+                }));
 
         // ========== PYROMANCER TREE (synergizes with Fire set) ==========
         pyromancerTree = new SkillTree("Pyromancer");
@@ -425,6 +435,8 @@ public class Hero extends Entity {
     public int getArcherMultishotCount()   { return archerMultishotCount; }
     public double getArcherSkillRangeBonus() { return archerSkillRangeBonus; }
     public double getNecroSummonBonus()    { return necroSummonBonus; }
+    public boolean isNecroSummonActive()   { return necroSummonActive; }
+    public boolean isNecroCorpseExplosionActive() { return necroCorpseExplosionActive; }
     public double getPaladinHealBonus()    { return paladinHealBonus; }
     public double getPyroFireBonus()       { return pyroFireBonus; }
     /** @return true when the f4c "Fire Elemental" skill node has been unlocked. */
@@ -452,6 +464,8 @@ public class Hero extends Entity {
         archerMultishotCount = 0;
         archerSkillRangeBonus = 0;
         necroSummonBonus = 0;
+        necroSummonActive = false;
+        necroCorpseExplosionActive = false;
         paladinHealBonus = 0;
         pyroFireBonus = 0;
         pyroElementalActive = false;
@@ -583,6 +597,17 @@ public class Hero extends Entity {
                 }
 
                 if (!nearest.isAlive()) {
+                    // Necromancer n3c: Corpse Explosion on kill.
+                    if (necroCorpseExplosionActive) {
+                        int explosionDamage = (int)(getEffectiveAttack() * 0.35 * (1.0 + necroSummonBonus));
+                        double explosionRange = 95.0;
+                        for (Enemy e2 : enemies) {
+                            if (e2 == nearest || !e2.isAlive()) continue;
+                            if (nearest.distanceTo(e2) <= explosionRange + e2.getRadius()) {
+                                e2.takeDamage(explosionDamage);
+                            }
+                        }
+                    }
                     gainExperience(nearest.getExperienceValue());
                     gainGold(nearest.getGoldValue());
                 }
@@ -695,8 +720,9 @@ public class Hero extends Entity {
             // Bone shield absorbs next hit completely
         }
         
-        // Summon Army - periodic skeleton spawn (simulated as damage to nearest enemy)
-        if (SetBonusManager.hasNecromancySummonArmy(eq) && necroSummonTimer <= 0) {
+        // Summon Army - available either via items (5+ NECROMANCY) or skill tree (n4a/n5)
+        boolean canSummonArmy = SetBonusManager.hasNecromancySummonArmy(eq) || necroSummonActive;
+        if (canSummonArmy && necroSummonTimer <= 0) {
             // Find nearest enemy and deal summon damage
             Enemy nearest = findNearestEnemy(enemies);
             if (nearest != null) {

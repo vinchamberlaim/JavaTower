@@ -2,6 +2,8 @@ package javatower.gui;
 
 import javafx.animation.AnimationTimer;
 import javafx.application.Application;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.DoubleBinding;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.stage.Stage;
@@ -9,6 +11,8 @@ import javafx.scene.Scene;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -133,14 +137,27 @@ public class GameGUI extends Application {
     private HeroPanel heroPanel;
     private WaveInfoPanel waveInfoPanel;
     private CombatLogPanel combatLogPanel;
+    /** Remember preferred fullscreen state across scene transitions. */
+    private boolean fullscreenPreferred = false;
 
     @Override
     public void start(Stage stage) {
         this.primaryStage = stage;
         primaryStage.setTitle("JavaTower");
-        primaryStage.setResizable(false);
+        primaryStage.setResizable(true);
         showMainMenu();
         primaryStage.show();
+    }
+
+    /**
+     * Apply a scene while preserving current fullscreen preference.
+     */
+    private void applyScene(Scene scene) {
+        currentScene = scene;
+        primaryStage.setScene(scene);
+        if (primaryStage.isFullScreen() != fullscreenPreferred) {
+            primaryStage.setFullScreen(fullscreenPreferred);
+        }
     }
 
     /**
@@ -179,9 +196,7 @@ public class GameGUI extends Application {
 
         menuBox.getChildren().addAll(title, subtitle, newGameBtn, loadGameBtn, quitBtn);
 
-        currentScene = new Scene(menuBox, Constants.SCREEN_WIDTH + 250,
-                Constants.SCREEN_HEIGHT + 60);
-        primaryStage.setScene(currentScene);
+        applyScene(new Scene(menuBox));
     }
 
     /**
@@ -225,9 +240,7 @@ public class GameGUI extends Application {
         box.getChildren().remove(title);
         box.getChildren().add(0, title);
 
-        currentScene = new Scene(box, Constants.SCREEN_WIDTH + 250,
-                Constants.SCREEN_HEIGHT + 60);
-        primaryStage.setScene(currentScene);
+        applyScene(new Scene(box));
     }
 
     /**
@@ -299,14 +312,33 @@ public class GameGUI extends Application {
         waveInfoPanel = new WaveInfoPanel(waveManager);
         combatLogPanel = new CombatLogPanel();
 
-        // ===== NEW COMPACT LAYOUT =====
-        // Right panel: Stats (narrower)
+        // Right panel: wrapped in scroll pane so panels never get cut off.
         VBox rightPanel = new VBox(8);
         rightPanel.setPadding(new Insets(8));
-        rightPanel.setStyle("-fx-background-color: #0d1b2a; -fx-border-color: #1b263b; -fx-border-width: 0 0 0 2;");
-        rightPanel.setPrefWidth(220);
-        rightPanel.setMinWidth(200);
+        rightPanel.setStyle("-fx-background-color: #0d1b2a;");
         rightPanel.getChildren().addAll(heroPanel, waveInfoPanel, combatLogPanel);
+
+        ScrollPane rightPanelScroll = new ScrollPane(rightPanel);
+        rightPanelScroll.setFitToWidth(true);
+        rightPanelScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        rightPanelScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        rightPanelScroll.setStyle("-fx-background: #0d1b2a; -fx-background-color: #0d1b2a; -fx-border-color: #1b263b; -fx-border-width: 0 0 0 2;");
+        rightPanelScroll.setPrefWidth(240);
+        rightPanelScroll.setMinWidth(210);
+
+        // Center board scales with available space instead of clipping.
+        StackPane boardHolder = new StackPane(gameBoard);
+        boardHolder.setPadding(new Insets(6));
+        boardHolder.setStyle("-fx-background-color: #0d1b2a;");
+        DoubleBinding boardScale = Bindings.createDoubleBinding(() -> {
+            double availW = Math.max(1, boardHolder.getWidth() - 12);
+            double availH = Math.max(1, boardHolder.getHeight() - 12);
+            double sx = availW / Constants.SCREEN_WIDTH;
+            double sy = availH / Constants.SCREEN_HEIGHT;
+            return Math.max(0.5, Math.min(sx, sy));
+        }, boardHolder.widthProperty(), boardHolder.heightProperty());
+        gameBoard.scaleXProperty().bind(boardScale);
+        gameBoard.scaleYProperty().bind(boardScale);
 
         // Bottom bar: Abilities + Towers (like MOBA games)
         HBox bottomBar = createBottomActionBar();
@@ -315,18 +347,18 @@ public class GameGUI extends Application {
         HBox topBar = createTopMenuBar();
 
         BorderPane root = new BorderPane();
-        root.setCenter(gameBoard);
-        root.setRight(rightPanel);
+        root.setCenter(boardHolder);
+        root.setRight(rightPanelScroll);
         root.setBottom(bottomBar);
         root.setTop(topBar);
         root.setStyle("-fx-background-color: #0d1b2a;");
 
-        currentScene = new Scene(root);
+        Scene scene = new Scene(root);
         
         // Setup keyboard hotkeys
-        setupHotkeys(currentScene);
+        setupHotkeys(scene);
         
-        primaryStage.setScene(currentScene);
+        applyScene(scene);
     }
     
     /**
@@ -379,7 +411,8 @@ public class GameGUI extends Application {
                     showShop();
                     break;
                 case SPACE:
-                    // Use inventory/potion (placeholder)
+                    // Quick inventory access
+                    showInventory();
                     break;
                 case M:
                     // Toggle mini-map
@@ -725,11 +758,20 @@ public class GameGUI extends Application {
      * Upgrades the currently selected tower if the hero can afford it.
      */
     private void upgradeTower() {
-        if (selectedTower == null) return;
-        if (selectedTower.getUpgradeLevel() >= 3) return;
+        if (selectedTower == null) {
+            notifyAction("Select a tower first to upgrade.");
+            return;
+        }
+        if (selectedTower.getUpgradeLevel() >= 3) {
+            notifyAction("Tower is already max level.");
+            return;
+        }
         int cost = selectedTower.getUpgradeCost();
         if (hero.spendGold(cost)) {
             selectedTower.upgrade();
+            notifyAction("Tower upgraded!");
+        } else {
+            notifyAction("Not enough gold to upgrade tower.");
         }
         selectedTower = null;
     }
@@ -786,7 +828,8 @@ public class GameGUI extends Application {
      * Toggles fullscreen mode.
      */
     private void toggleFullscreen() {
-        primaryStage.setFullScreen(!primaryStage.isFullScreen());
+        fullscreenPreferred = !primaryStage.isFullScreen();
+        primaryStage.setFullScreen(fullscreenPreferred);
     }
     
     /**
@@ -797,7 +840,7 @@ public class GameGUI extends Application {
         VBox pauseBox = new VBox(20);
         pauseBox.setAlignment(Pos.CENTER);
         pauseBox.setStyle("-fx-background-color: rgba(0, 0, 0, 0.8);");
-        pauseBox.setPrefSize(Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);
+        pauseBox.setPrefSize(currentScene.getWidth(), currentScene.getHeight());
         
         Label pauseLabel = new Label("PAUSED");
         pauseLabel.setFont(Font.font("Monospaced", FontWeight.BOLD, 48));
@@ -845,9 +888,15 @@ public class GameGUI extends Application {
 
     private void useSkill() {
         if (gameState != GameState.PLAYING && gameState != GameState.PAUSED) return;
-        if (skillCooldownTimer > 0) return;
+        if (skillCooldownTimer > 0) {
+            notifyAction("Q is on cooldown.");
+            return;
+        }
         // Skill: damage all enemies in melee range for 1.8× ATK, costs 15 mana
-        if (!hero.useMana(15)) return;
+        if (!hero.useMana(15)) {
+            notifyAction("Not enough mana for Q.");
+            return;
+        }
         skillCooldownTimer = SKILL_COOLDOWN;
         int skillDamage = (int)(hero.getAttack() * 1.8);
         for (Enemy e : waveManager.getActiveEnemies()) {
@@ -863,8 +912,14 @@ public class GameGUI extends Application {
      */
     private void useSpecialAbility() {
         if (gameState != GameState.PLAYING) return;
-        if (specialCooldownTimer > 0) return;
-        if (!hero.useMana(25)) return;
+        if (specialCooldownTimer > 0) {
+            notifyAction("W is on cooldown.");
+            return;
+        }
+        if (!hero.useMana(25)) {
+            notifyAction("Not enough mana for W.");
+            return;
+        }
         specialCooldownTimer = SPECIAL_COOLDOWN;
         
         int damage = (int)(hero.getAttack() * 2.0);
@@ -885,8 +940,14 @@ public class GameGUI extends Application {
      */
     private void selfHeal() {
         if (gameState != GameState.PLAYING) return;
-        if (healCooldownTimer > 0) return;
-        if (!hero.useMana(20)) return;
+        if (healCooldownTimer > 0) {
+            notifyAction("E is on cooldown.");
+            return;
+        }
+        if (!hero.useMana(20)) {
+            notifyAction("Not enough mana for E.");
+            return;
+        }
         healCooldownTimer = HEAL_COOLDOWN;
         int healAmount = (int)(hero.getEffectiveMaxHealth() * 0.3);
         hero.heal(healAmount);
@@ -898,8 +959,18 @@ public class GameGUI extends Application {
      */
     private void towerBoost() {
         if (gameState != GameState.PLAYING) return;
-        if (towers.isEmpty() || towerBoostTimer > 0) return;
-        if (!hero.useMana(25)) return;
+        if (towers.isEmpty()) {
+            notifyAction("Place towers first to use R boost.");
+            return;
+        }
+        if (towerBoostTimer > 0) {
+            notifyAction("R is on cooldown.");
+            return;
+        }
+        if (!hero.useMana(25)) {
+            notifyAction("Not enough mana for R.");
+            return;
+        }
         towerBoostTimer = 5.0;
         boostedTowers.clear();
         boostedOriginalDamage.clear();
@@ -1054,12 +1125,16 @@ public class GameGUI extends Application {
      */
     private void sellTower() {
         if (gameState != GameState.PLAYING) return;
-        if (selectedTower == null) return;
+        if (selectedTower == null) {
+            notifyAction("Select a tower first to sell.");
+            return;
+        }
 
         // First press: show confirm prompt
         if (!sellPending) {
             sellPending = true;
             sellConfirmTimer = SELL_CONFIRM_WINDOW;
+            notifyAction("Press S again to confirm sell.");
             return;
         }
 
@@ -1092,14 +1167,20 @@ public class GameGUI extends Application {
 
         // Check cell is empty
         for (Tower t : towers) {
-            if (Math.abs(t.getX() - cx) < 1 && Math.abs(t.getY() - cy) < 1) return;
+            if (Math.abs(t.getX() - cx) < 1 && Math.abs(t.getY() - cy) < 1) {
+                notifyAction("Tile occupied. Choose another tile.");
+                return;
+            }
         }
         Tower tower = TowerFactory.createTower(type, gx, gy);
         if (tower == null) return;
         // Position at pixel center of grid cell
         tower.setPosition(cx, cy);
         int cost = tower.getUpgradeCost();
-        if (hero.getGold() < cost) return;
+        if (hero.getGold() < cost) {
+            notifyAction("Not enough gold for that tower.");
+            return;
+        }
         hero.spendGold(cost);
         towers.add(tower);
         
@@ -1110,6 +1191,16 @@ public class GameGUI extends Application {
         if (tower.hasSynergy() && combatLogPanel != null) {
             String synergyDesc = javatower.systems.TowerSynergyManager.getSynergyDescription(tower.getActiveSynergy());
             combatLogPanel.addEntry("✨ Synergy: " + synergyDesc);
+        }
+    }
+
+    /**
+     * Lightweight user-facing action feedback for button/hotkey outcomes.
+     */
+    private void notifyAction(String message) {
+        Logger.info(message);
+        if (combatLogPanel != null) {
+            combatLogPanel.addEntry("ℹ️ " + message);
         }
     }
 
@@ -1170,27 +1261,21 @@ public class GameGUI extends Application {
 
         ShopPanel shopPanel = new ShopPanel(hero, shop, this);
 
-        currentScene = new Scene(shopPanel, Constants.SCREEN_WIDTH + 250,
-                Constants.SCREEN_HEIGHT + 60);
-        primaryStage.setScene(currentScene);
+        applyScene(new Scene(shopPanel));
     }
 
     public void showInventory() {
         stopGameLoop();
         InventoryPanel invPanel = new InventoryPanel(hero, this);
 
-        currentScene = new Scene(invPanel, Constants.SCREEN_WIDTH + 250,
-                Constants.SCREEN_HEIGHT + 60);
-        primaryStage.setScene(currentScene);
+        applyScene(new Scene(invPanel));
     }
 
     public void showForge() {
         stopGameLoop();
         ForgePanel forgePanel = new ForgePanel(hero, this);
 
-        currentScene = new Scene(forgePanel, Constants.SCREEN_WIDTH + 250,
-                Constants.SCREEN_HEIGHT + 60);
-        primaryStage.setScene(currentScene);
+        applyScene(new Scene(forgePanel));
     }
 
     public void showSkillTree() {
@@ -1199,9 +1284,7 @@ public class GameGUI extends Application {
 
         SkillTreePanel skillTreePanel = new SkillTreePanel(hero, this);
 
-        currentScene = new Scene(skillTreePanel, Constants.SCREEN_WIDTH + 250,
-                Constants.SCREEN_HEIGHT + 60);
-        primaryStage.setScene(currentScene);
+        applyScene(new Scene(skillTreePanel));
     }
 
     public void returnToGame() {
@@ -1244,9 +1327,7 @@ public class GameGUI extends Application {
 
         gameOverBox.getChildren().addAll(resultLabel, statsLabel, killStatsLabel, mainMenuBtn);
 
-        currentScene = new Scene(gameOverBox, Constants.SCREEN_WIDTH + 250,
-                Constants.SCREEN_HEIGHT + 60);
-        primaryStage.setScene(currentScene);
+        applyScene(new Scene(gameOverBox));
     }
 
     private Button createMenuButton(String text) {
@@ -1296,11 +1377,12 @@ public class GameGUI extends Application {
      */
     private HBox createBottomActionBar() {
         HBox bottomBar = new HBox(12);
-        bottomBar.setPadding(new Insets(10, 15, 20, 15));
+        bottomBar.setPadding(new Insets(8, 12, 10, 12));
         bottomBar.setStyle("-fx-background-color: #0d1b2a; -fx-border-color: #1b263b; -fx-border-width: 2 0 0 0;");
         bottomBar.setAlignment(Pos.CENTER);
-        bottomBar.setPrefHeight(90);
-        bottomBar.setMaxHeight(90);
+        bottomBar.setMinHeight(70);
+        bottomBar.setPrefHeight(82);
+        bottomBar.setMaxHeight(Region.USE_PREF_SIZE);
 
         // Left: Tower buttons
         VBox towerSection = new VBox(4);
