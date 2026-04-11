@@ -128,4 +128,15 @@ public class SkillProgression {
     public Map<WeaponClass, Integer> getAllLevels() {
         return new HashMap<>(skillLevels);
     }
+
+    /**
+     * Restores a skill level and carry-over XP from save data.
+     */
+    public void setSkillState(WeaponClass wc, int level, double xp) {
+        if (wc == null || wc == WeaponClass.NONE) return;
+        int clampedLevel = Math.max(0, Math.min(MAX_LEVEL, level));
+        double clampedXp = Math.max(0.0, xp);
+        skillLevels.put(wc, clampedLevel);
+        skillXP.put(wc, clampedXp);
+    }
 }

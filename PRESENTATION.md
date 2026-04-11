@@ -25,7 +25,7 @@
 
 - Player controls a **hero** with equipment, skills, and abilities
 - Place **4 tower types** to defend against enemies
-- Survive **30 waves** of undead enemies (Zombie → Necromancer King)
+- Survive **scaling waves up to 1000** with undead + Lovecraft enemies
 - Manage a **Tetris-style inventory**, **shop**, **forge**, and **skill trees**
 - Game state **persists to SQLite** across 4 save slots
 
@@ -35,6 +35,13 @@
 - Multiple entity types → natural **inheritance hierarchy**
 - Real-time systems → practical use of **data structures**
 - Many interacting systems → need for **design patterns**
+
+### Code Notation Used In This Deck
+
+- Method notation: `Class::method(params) -> returnType`
+- Evidence notation: `[path:line]` from project source
+- Complexity notation: `$O(1)$`, `$O(n)$`, etc.
+- Pattern notation: `[Factory]`, `[Observer]`, `[Template Method]`
 
 ---
 
@@ -59,6 +66,18 @@ abstract class Entity {
 
 > **Key insight**: `Entity` has 110 lines of shared logic. Each of the 10 enemy subclasses needs only ~9 lines.
 
+### Code Evidence (Abstraction)
+
+```java
+public abstract class Entity {
+    public abstract void takeTurn();
+    protected void onDeath() {}
+}
+```
+
+- `Entity::takeTurn() -> void` [javatower/entities/Entity.java:18]
+- `Entity::onDeath() -> void` [javatower/entities/Entity.java:69]
+
 ---
 
 ## Slide 4: OOP Pillar 2 — ENCAPSULATION
@@ -82,6 +101,20 @@ class Inventory {
 | **Validation** | canPlaceItem() before addItem() |
 | **Singleton** | DatabaseManager.getInstance() |
 | **Immutable config** | Constants.java — static final values |
+
+### Code Evidence (Encapsulation)
+
+```java
+private boolean[][] occupied;
+private Item[][] itemGrid;
+
+public boolean canPlaceItem(Item item, int x, int y) { ... }
+public boolean addItem(Item item) { ... }
+```
+
+- `Inventory::canPlaceItem(Item,int,int) -> boolean` [javatower/systems/Inventory.java:25]
+- `Inventory::addItem(Item) -> boolean` [javatower/systems/Inventory.java:50]
+- Footprint check is bounded by item size (`w*h`) and grid scan is bounded by inventory area (`W*H`)
 
 ---
 
@@ -109,6 +142,18 @@ Entity (abstract)
 > **3-level hierarchy**: Entity → Enemy/Tower → 14 concrete subclasses
 > Each level **adds** functionality. No code is duplicated.
 
+### Code Evidence (Inheritance + Factory)
+
+```java
+switch (type) {
+    case GHOUL: enemy = new Ghoul(waveLevel); break;
+    case LICH: enemy = new Lich(waveLevel); break;
+    case SHOGGOTH: enemy = new Shoggoth(waveLevel); break;
+}
+```
+
+- `EnemyFactory::createEnemy(EnemyType,int,WaveModifier) -> Enemy` [javatower/factories/EnemyFactory.java:16] [Factory]
+
 ---
 
 ## Slide 6: OOP Pillar 4 — POLYMORPHISM
@@ -134,6 +179,17 @@ for (Tower tower : towers) {
 | **Factory polymorphism** | EnemyFactory returns correct subclass |
 | **Strategy via enum** | TargetMode changes selectTarget() behaviour |
 
+### Code Evidence (Polymorphism)
+
+```java
+for (Enemy e : new ArrayList<>(enemies)) {
+    e.update(dt, hero);
+}
+```
+
+- `GameGUI::gameUpdate(double) -> void` [javatower/gui/GameGUI.java:538]
+- Dynamic dispatch call site: [javatower/gui/GameGUI.java:564]
+
 ---
 
 ## Slide 7: Design Patterns (11 Applied)
@@ -154,7 +210,36 @@ for (Tower tower : towers) {
 
 ---
 
-## Slide 8: Data Structures
+## Slide 8: What We Improved Recently
+
+### Reliability + UX fixes (latest sprint)
+
+- **No item loss transactions** during equip/swap/unequip
+- **Safe inventory overflow handling** (auto-expand fallback for drops/returns)
+- **Wave-end autosave upgrades**: inventory, equipped items, skill trees, and skill progression now persisted
+- **Load-from-autosave restore path** with legacy fallback support
+- **Control clarity improvements** in the in-game action hints and feedback log
+
+### Why this matters for marking
+
+- Demonstrates robust state management, not only feature quantity
+- Shows defensive programming and data integrity in a live system
+
+### Code Evidence (Reliability)
+
+- No-loss equipment swap:
+    `Hero::equipItemWithDisplaced(Item) -> List<Item>`
+    [javatower/entities/Hero.java:934]
+- Inventory save serialization:
+    `SaveGameManager::serializeInventory(Hero) -> String`
+    [javatower/systems/SaveGameManager.java:271]
+- Inventory restore path:
+    `SaveGameManager::deserializeInventory(Hero,String) -> void`
+    [javatower/systems/SaveGameManager.java:424]
+
+---
+
+## Slide 9: Data Structures
 
 | Structure | Usage | Complexity |
 |-----------|-------|-----------|
@@ -175,7 +260,7 @@ for (Tower tower : towers) {
 
 ---
 
-## Slide 9: Architecture & Database
+## Slide 10: Architecture & Database
 
 ### MVC Architecture
 
@@ -202,7 +287,7 @@ hero_data         → full hero serialisation (JSON)
 
 ---
 
-## Slide 10: Demo & Summary
+## Slide 11: Demo & Summary
 
 ### Live Demo
 
@@ -210,7 +295,14 @@ hero_data         → full hero serialisation (JSON)
 2. Place towers (1–4 keys)
 3. Fight wave (hero auto-attacks, WASD to move)
 4. Between waves: Shop → Inventory → Skill Tree → Forge
-5. Boss fight at wave 5 with unique drops
+5. Show autosave/reload preserving gear + skills
+6. Boss/Late-wave enemy showcase with visible scaling
+
+### Demo Speaking Notation
+
+- "No item loss is handled by `Hero::equipItemWithDisplaced` [javatower/entities/Hero.java:934]."
+- "Enemy runtime updates are dispatched in `GameGUI::gameUpdate` [javatower/gui/GameGUI.java:564]."
+- "Save payload is built and restored by `SaveGameManager` at [javatower/systems/SaveGameManager.java:271] and [javatower/systems/SaveGameManager.java:424]."
 
 ### Summary Statistics
 
@@ -223,8 +315,9 @@ hero_data         → full hero serialisation (JSON)
 | Design patterns applied | 11 |
 | Data structures used | 7 |
 | Enemy types (inheritance) | 10 subclasses |
+| Additional late-wave enemy set | Cultist, Deep One, Shoggoth |
 | Tower types (polymorphism) | 4 subclasses |
-| Game waves | 30 |
+| Game waves | Scales to 1000 |
 | Save slots | 4 (SQLite) |
 
 ### Assessment Criteria Met
@@ -235,8 +328,24 @@ hero_data         → full hero serialisation (JSON)
 - **Polymorphism**: Method overriding, subtype polymorphism, factories, strategy
 - **Data Structures**: ArrayList, HashMap, 2D arrays, LinkedHashMap, HashSet, enums
 - **Design Patterns**: 11 patterns (Factory, Observer, Singleton, Strategy, Template, Decorator, State, Composite, DTO, MVC)
-- **Persistence**: SQLite via JDBC with save/load
+- **Persistence**: SQLite via JDBC with save/load and wave-end autosave
 - **GUI**: JavaFX canvas + 8 UI screens
+
+---
+
+## Slide 12: Team Delivery Plan (Video)
+
+### Suggested split for recorded contributions
+
+1. **Vincent**: architecture + game loop + systems integration
+2. **Nicolas**: enemy/tower behaviour + combat design
+3. **Emmanuel**: items/inventory/persistence data flow
+
+### Recording approach
+
+- Each member records their own section
+- Merge into one final submission with title cards per speaker
+- Keep sections short, technical, and evidence-based (show code + running game)
 
 ---
 

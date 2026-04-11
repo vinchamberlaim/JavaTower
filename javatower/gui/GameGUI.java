@@ -25,6 +25,7 @@ import javatower.entities.Tower.TowerType;
 import javatower.entities.towers.SupportTower;
 import javatower.factories.TowerFactory;
 import javatower.systems.Shop;
+import javatower.systems.SaveGameManager;
 import javatower.systems.SetBonusManager;
 import javatower.database.DatabaseManager;
 import javatower.util.Constants;
@@ -76,6 +77,7 @@ public class GameGUI extends Application {
     private Shop shop;
     private List<Tower> towers;
     private GameState gameState;
+    private SaveGameManager saveManager;
     /** The 60-FPS {@link AnimationTimer} that drives the game loop. */
     private AnimationTimer gameLoop;
     /** Nanosecond timestamp of the previous frame (for delta-time calculation). */
@@ -137,6 +139,10 @@ public class GameGUI extends Application {
     private HeroPanel heroPanel;
     private WaveInfoPanel waveInfoPanel;
     private CombatLogPanel combatLogPanel;
+    /** Last known scroll position for SkillTreePanel so it persists across opens. */
+    private double skillTreeScrollV = 0;
+    /** Active skill panel instance while skill-tree scene is open. */
+    private SkillTreePanel activeSkillTreePanel;
     /** Remember preferred fullscreen state across scene transitions. */
     private boolean fullscreenPreferred = false;
 
@@ -259,6 +265,7 @@ public class GameGUI extends Application {
         towers = new ArrayList<>();
         bonePiles = new ArrayList<>();
         shop = new Shop();
+        saveManager = new SaveGameManager();
         gameState = GameState.PLAYING;
 
         // Initialize meta_progression row if first run
@@ -276,14 +283,32 @@ public class GameGUI extends Application {
      * Loads a saved game from the database.
      */
     public void loadSavedGame() {
+        saveManager = new SaveGameManager();
+        javatower.data.GameState loadedState = saveManager.loadAutoSave();
+        if (loadedState != null && loadedState.getHero() != null) {
+            hero = loadedState.getHero();
+            waveManager = new javatower.systems.WaveManager();
+            while (waveManager.getCurrentWave() < loadedState.getCurrentWave()) {
+                waveManager.nextWave();
+            }
+            towers = saveManager.rebuildTowers(loadedState);
+            bonePiles = new ArrayList<>();
+            shop = new Shop();
+            gameState = GameState.PLAYING;
+
+            showGameScene();
+            startWave();
+            startGameLoop();
+            return;
+        }
+
+        // Fallback to legacy save path for compatibility.
         DatabaseManager db = DatabaseManager.getInstance();
         Hero loaded = db.loadGame();
         if (loaded == null) return;
-
         hero = loaded;
         int savedWave = db.loadWave();
         waveManager = new javatower.systems.WaveManager();
-        // Advance wave manager to saved wave
         while (waveManager.getCurrentWave() < savedWave) {
             waveManager.nextWave();
         }
@@ -443,10 +468,15 @@ public class GameGUI extends Application {
                 case S:
                     sellTower();
                     break;
+                case T:
+                    upgradeTower();
+                    break;
                 case SHIFT:
                     // Dodge/Roll in current movement direction
                     if (hero.rollInMovementDirection()) {
-                        Logger.info("Hero rolled!");
+                        notifyAction("Roll!");
+                    } else {
+                        notifyAction("Cannot roll: use a direction key and wait for cooldown.");
                     }
                     break;
                 case F:
@@ -531,8 +561,16 @@ public class GameGUI extends Application {
         }
 
         // Update enemies
-        for (Enemy e : enemies) {
+        for (Enemy e : new ArrayList<>(enemies)) {
             e.update(dt, hero);
+        }
+
+        if (hero.didNecroSummonCastThisFrame()) {
+            if (combatLogPanel != null) {
+                combatLogPanel.addEntry("☠️ Undead surge hits " + hero.getNecroSummonLastHits() + " enemy" + (hero.getNecroSummonLastHits() == 1 ? "" : "ies") + "!");
+            }
+            gameBoard.applyScreenShake(2.0, 0.08);
+            hero.clearNecroSummonCastFlag();
         }
 
         // Detect enemy damage on hero (HP dropped)
@@ -668,9 +706,7 @@ public class GameGUI extends Application {
             // Item drops from enemies (#11 + #41)
             Item drop = javatower.factories.ItemFactory.createItemDrop(e);
             if (drop != null) {
-                if (!hero.getInventory().addItem(drop)) {
-                    // Inventory full — item lost (future: ground drops)
-                }
+                addDropSafely(drop);
             }
 
             // Visual: gold + XP pickup
@@ -703,6 +739,8 @@ public class GameGUI extends Application {
         if (waveManager.isWaveComplete() && !waitingForNextWave) {
             // Auto-save on wave complete
             try {
+                if (saveManager == null) saveManager = new SaveGameManager();
+                saveManager.autoSave(hero, towers, waveManager.getCurrentWave(), (int)Math.floor(runTime));
                 DatabaseManager.getInstance().saveGame(hero, waveManager.getCurrentWave());
                 DatabaseManager.getInstance().updateMaxWave(waveManager.getCurrentWave());
             } catch (Exception ex) { /* DB optional */ }
@@ -874,7 +912,7 @@ public class GameGUI extends Application {
      * Quick save to auto-save slot (slot 0).
      */
     private void showSaveMenu() {
-        javatower.systems.SaveGameManager saveManager = new javatower.systems.SaveGameManager();
+        if (saveManager == null) saveManager = new SaveGameManager();
         boolean saved = saveManager.autoSave(hero, towers, waveManager.getCurrentWave(), 0);
         if (saved) {
             Logger.info("Game saved to auto-save slot");
@@ -996,7 +1034,7 @@ public class GameGUI extends Application {
     private void useUltimateAbility() {
         if (gameState != GameState.PLAYING) return;
         if (ultimateMeter < ULTIMATE_COST) {
-            Logger.info("Ultimate not ready! Meter: " + (int)ultimateMeter + "/" + (int)ULTIMATE_COST);
+            notifyAction("Ultimate not ready: " + (int)ultimateMeter + "/" + (int)ULTIMATE_COST);
             return;
         }
         
@@ -1204,6 +1242,43 @@ public class GameGUI extends Application {
         }
     }
 
+    /**
+     * Exposes user-facing action feedback to child panels.
+     */
+    public void logAction(String message) {
+        notifyAction(message);
+    }
+
+    /**
+     * Guarantees dropped items are never lost by expanding inventory until the item fits.
+     */
+    private void addDropSafely(Item drop) {
+        if (drop == null) return;
+        boolean added = hero.getInventory().addItem(drop);
+        if (added) return;
+
+        // Expand inventory gradually until item fits. Hard safety cap prevents runaway memory.
+        int safety = 0;
+        while (!added && safety < 64) {
+            int newW = hero.getInventory().getWidth() + 1;
+            int newH = hero.getInventory().getHeight() + 1;
+            hero.getInventory().expand(newW, newH);
+            added = hero.getInventory().addItem(drop);
+            safety++;
+        }
+
+        if (safety > 0) {
+            notifyAction("Inventory expanded to fit loot (" + hero.getInventory().getWidth() + "x" + hero.getInventory().getHeight() + ").");
+        }
+        if (!added) {
+            // Extreme fallback: keep expanding until success (should never hit this path).
+            while (!added) {
+                hero.getInventory().expand(hero.getInventory().getWidth() + 1, hero.getInventory().getHeight() + 1);
+                added = hero.getInventory().addItem(drop);
+            }
+        }
+    }
+
     private void startWave() {
         if (waveManager.getCurrentWave() == 1 && !waveManager.isWaveInProgress()) {
             waveManager.startWave();
@@ -1282,12 +1357,16 @@ public class GameGUI extends Application {
         stopGameLoop();
         gameState = GameState.SKILL_TREE;
 
-        SkillTreePanel skillTreePanel = new SkillTreePanel(hero, this);
+        activeSkillTreePanel = new SkillTreePanel(hero, this, skillTreeScrollV);
 
-        applyScene(new Scene(skillTreePanel));
+        applyScene(new Scene(activeSkillTreePanel));
     }
 
     public void returnToGame() {
+        if (activeSkillTreePanel != null) {
+            skillTreeScrollV = activeSkillTreePanel.getSavedScrollV();
+            activeSkillTreePanel = null;
+        }
         gameState = GameState.PLAYING;
         showGameScene();
         if (waveManager.isWaveInProgress()) {
@@ -1423,7 +1502,7 @@ public class GameGUI extends Application {
         specialSection.setAlignment(Pos.CENTER);
         Label specialLabel = new Label("💨 SPECIAL");
         specialLabel.setFont(Font.font("Monospaced", FontWeight.BOLD, 11));
-        specialLabel.setStyle("-fx-text-fill: #778da9;");
+        specialLabel.setStyle("-fx-text-fill: #e2e8f0;");
         
         HBox specialBtns = new HBox(6);
         specialBtns.setAlignment(Pos.CENTER);
@@ -1448,7 +1527,7 @@ public class GameGUI extends Application {
         utilSection.setAlignment(Pos.CENTER);
         Label utilLabel = new Label("🔧 UTIL");
         utilLabel.setFont(Font.font("Monospaced", FontWeight.BOLD, 11));
-        utilLabel.setStyle("-fx-text-fill: #778da9;");
+        utilLabel.setStyle("-fx-text-fill: #e2e8f0;");
         
         HBox utilBtns = new HBox(6);
         utilBtns.setAlignment(Pos.CENTER);
@@ -1457,10 +1536,25 @@ public class GameGUI extends Application {
         utilBtns.getChildren().addAll(upBtn, sellBtn);
         utilSection.getChildren().addAll(utilLabel, utilBtns);
 
+        // Controls legend so D/SHIFT/util actions are always visible in-game.
+        VBox hintSection = new VBox(3);
+        hintSection.setAlignment(Pos.CENTER_LEFT);
+        Label hintTitle = new Label("KEYS");
+        hintTitle.setFont(Font.font("Monospaced", FontWeight.BOLD, 11));
+        hintTitle.setStyle("-fx-text-fill: #e2e8f0;");
+        Label hintLine1 = new Label("WASD/Arrows move (D = right), SHIFT roll");
+        hintLine1.setFont(Font.font("Monospaced", 10));
+        hintLine1.setStyle("-fx-text-fill: #cbd5e1;");
+        Label hintLine2 = new Label("T upgrade selected tower, S sell (press twice)");
+        hintLine2.setFont(Font.font("Monospaced", 10));
+        hintLine2.setStyle("-fx-text-fill: #cbd5e1;");
+        hintSection.getChildren().addAll(hintTitle, hintLine1, hintLine2);
+
         bottomBar.getChildren().addAll(towerSection, new javafx.scene.control.Separator(javafx.geometry.Orientation.VERTICAL), 
                 abilitySection, new javafx.scene.control.Separator(javafx.geometry.Orientation.VERTICAL),
                 specialSection, new javafx.scene.control.Separator(javafx.geometry.Orientation.VERTICAL),
-                utilSection);
+            utilSection, new javafx.scene.control.Separator(javafx.geometry.Orientation.VERTICAL),
+            hintSection);
         
         HBox.setHgrow(abilitySection, Priority.ALWAYS);
         return bottomBar;

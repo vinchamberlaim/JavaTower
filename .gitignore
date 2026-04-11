@@ -22,6 +22,14 @@ Thumbs.db
 .DS_Store
 *.log
 
+# Specstory / IDE chat history
+.specstory/
+
+# Teleprompter tools (not project code)
+TELEPROMPT_*.md
+TELEPROMPT_*.html
+PRESENTATION_CLIP_PLAN.md
+
 # Assignment brief (not code)
 *.docx
 

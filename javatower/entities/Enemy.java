@@ -241,7 +241,9 @@ public abstract class Enemy extends Entity {
         if (dist <= attackRange) {
             // In range: attack on cooldown
             if (attackTimer >= attackCooldown) {
-                hero.takeDamage(getAttack());
+                // Late-wave enemies hit harder: base attack plus a scaling bonus.
+                int scaledAttack = getAttack() + 1 + Math.max(0, waveLevel / 8);
+                hero.takeDamage(Math.max(1, scaledAttack));
                 attackTimer = 0;
                 onAttack(hero);
             }

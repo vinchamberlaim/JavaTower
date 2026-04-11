@@ -226,6 +226,10 @@ public class Hero extends Entity {
     private boolean attackedThisFrame;
     /** Flag set for exactly one frame after the hero levels up. */
     private boolean leveledUpThisFrame;
+    /** Flag set when necromancy summon passive triggers this frame. */
+    private boolean necroSummonCastThisFrame;
+    /** Number of enemies struck by the latest necro summon cast. */
+    private int necroSummonLastHits;
 
     /**
      * Constructs a new hero with default base stats and initialises
@@ -442,6 +446,16 @@ public class Hero extends Entity {
     /** @return true when the f4c "Fire Elemental" skill node has been unlocked. */
     public boolean isPyroElementalActive() { return pyroElementalActive; }
     public int getWarriorArmorBonus()      { return warriorArmorBonus; }
+
+    public void setArcherMultishotCount(int v) { archerMultishotCount = Math.max(0, v); }
+    public void setArcherSkillRangeBonus(double v) { archerSkillRangeBonus = Math.max(0, v); }
+    public void setNecroSummonBonus(double v) { necroSummonBonus = Math.max(0, v); }
+    public void setNecroSummonActive(boolean v) { necroSummonActive = v; }
+    public void setNecroCorpseExplosionActive(boolean v) { necroCorpseExplosionActive = v; }
+    public void setPaladinHealBonus(double v) { paladinHealBonus = Math.max(0, v); }
+    public void setPyroFireBonus(double v) { pyroFireBonus = Math.max(0, v); }
+    public void setPyroElementalActive(boolean v) { pyroElementalActive = v; }
+    public void setWarriorArmorBonus(int v) { warriorArmorBonus = Math.max(0, v); }
 
     /**
      * Resets all skill-tree passive callback fields to their default (zero/false) values.
@@ -723,11 +737,20 @@ public class Hero extends Entity {
         // Summon Army - available either via items (5+ NECROMANCY) or skill tree (n4a/n5)
         boolean canSummonArmy = SetBonusManager.hasNecromancySummonArmy(eq) || necroSummonActive;
         if (canSummonArmy && necroSummonTimer <= 0) {
-            // Find nearest enemy and deal summon damage
-            Enemy nearest = findNearestEnemy(enemies);
-            if (nearest != null) {
-                int summonDamage = (int)(getEffectiveAttack() * 0.5 * (1.0 + necroSummonBonus));
-                nearest.takeDamage(summonDamage);
+            int summonDamage = (int)(getEffectiveAttack() * 0.55 * (1.0 + necroSummonBonus));
+            int maxHits = Math.max(1, 2 + (int)Math.floor(necroSummonBonus));
+            int hits = 0;
+            for (Enemy e : enemies) {
+                if (!e.isAlive()) continue;
+                if (distanceTo(e) <= getEffectiveRange() + 90 + e.getRadius()) {
+                    e.takeDamage(summonDamage);
+                    hits++;
+                    if (hits >= maxHits) break;
+                }
+            }
+            if (hits > 0) {
+                necroSummonCastThisFrame = true;
+                necroSummonLastHits = hits;
             }
             necroSummonTimer = NECRO_SUMMON_CD;
         }
@@ -833,6 +856,9 @@ public class Hero extends Entity {
     public boolean didAttackThisFrame() { return attackedThisFrame; }
     public void clearFrameFlags() { attackedThisFrame = false; leveledUpThisFrame = false; }
     public boolean didLevelUpThisFrame() { return leveledUpThisFrame; }
+    public boolean didNecroSummonCastThisFrame() { return necroSummonCastThisFrame; }
+    public int getNecroSummonLastHits() { return necroSummonLastHits; }
+    public void clearNecroSummonCastFlag() { necroSummonCastThisFrame = false; necroSummonLastHits = 0; }
 
     /**
      * Gain experience and check for level up.
@@ -891,54 +917,60 @@ public class Hero extends Entity {
     }
 
     /**
-     * Equip an item, returning the previously equipped item in that slot.
-     * Two-handed weapons block the offhand slot.
-     * Rings support up to 10 slots.
+     * Checks whether an item can be equipped right now.
      */
-    public Item equipItem(Item item) {
-        if (item == null) return null;
-        Item previous = null;
+    public boolean canEquipItem(Item item) {
+        if (item == null) return false;
+        if (item.getSlot() == Item.Slot.OFFHAND && weapon != null && weapon.isTwoHanded()) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Equips an item and returns all displaced items that must be returned to inventory.
+     * Returns null if the equip is invalid (for example, offhand while a two-handed weapon is equipped).
+     */
+    public List<Item> equipItemWithDisplaced(Item item) {
+        if (!canEquipItem(item)) return null;
+
+        List<Item> displaced = new ArrayList<>();
         switch (item.getSlot()) {
             case WEAPON:
-                previous = weapon;
+                if (weapon != null) displaced.add(weapon);
                 weapon = item;
-                // Two-handed weapon clears offhand
+                // Two-handed weapon clears offhand and displaces it safely.
                 if (item.isTwoHanded() && offhand != null) {
-                    // Return offhand to inventory handled by caller
-                    Item displacedOffhand = offhand;
+                    displaced.add(offhand);
                     offhand = null;
-                    // Store displaced for caller — attach to previous if possible
-                    if (previous == null) previous = displacedOffhand;
                 }
                 break;
             case OFFHAND:
-                // Can't equip offhand if weapon is two-handed
-                if (weapon != null && weapon.isTwoHanded()) return null;
-                previous = offhand;
+                if (offhand != null) displaced.add(offhand);
                 offhand = item;
                 break;
             case HELMET:
-                previous = helmet;
+                if (helmet != null) displaced.add(helmet);
                 helmet = item;
                 break;
             case CHEST:
-                previous = chest;
+                if (chest != null) displaced.add(chest);
                 chest = item;
                 break;
             case LEGS:
-                previous = legs;
+                if (legs != null) displaced.add(legs);
                 legs = item;
                 break;
             case BOOTS:
-                previous = boots;
+                if (boots != null) displaced.add(boots);
                 boots = item;
                 break;
             case GLOVES:
-                previous = gloves;
+                if (gloves != null) displaced.add(gloves);
                 gloves = item;
                 break;
             case AMULET:
-                previous = amulet;
+                if (amulet != null) displaced.add(amulet);
                 amulet = item;
                 break;
             case RING:
@@ -946,17 +978,37 @@ public class Hero extends Entity {
                 for (int i = 0; i < rings.length; i++) {
                     if (rings[i] == null) {
                         rings[i] = item;
-                        return null; // no previous
+                        return displaced;
                     }
                 }
                 // All 10 full — replace last ring
-                previous = rings[rings.length - 1];
+                if (rings[rings.length - 1] != null) displaced.add(rings[rings.length - 1]);
                 rings[rings.length - 1] = item;
                 break;
             default:
                 break;
         }
-        return previous;
+        return displaced;
+    }
+
+    /**
+     * Legacy compatibility helper: returns the first displaced item if any.
+     */
+    public Item equipItem(Item item) {
+        List<Item> displaced = equipItemWithDisplaced(item);
+        if (displaced == null || displaced.isEmpty()) return null;
+        return displaced.get(0);
+    }
+
+    /**
+     * Returns true if the specific object reference is currently equipped.
+     */
+    public boolean isItemEquipped(Item item) {
+        if (item == null) return false;
+        for (Item equipped : getEquippedItems()) {
+            if (equipped == item) return true;
+        }
+        return false;
     }
 
     /**
@@ -1026,7 +1078,10 @@ public class Hero extends Entity {
         int totalDef = getEffectiveDefence() + skillProgression.getDefenceBonus();
         // Knight 2pc: +25% defence
         totalDef = (int)(totalDef * SetBonusManager.getKnightDefenceBonus(eq));
-        int reduced = Math.max(1, damage - totalDef);
+        // Armor gives diminishing-returns mitigation so tougher enemies still hurt.
+        // Formula: final = incoming * 100/(100 + armor), with floor of 1.
+        double armorMult = 100.0 / (100.0 + Math.max(0, totalDef));
+        int reduced = Math.max(1, (int)Math.round(Math.max(1, damage) * armorMult));
         setCurrentHealth(getCurrentHealth() - reduced);
         
         // Reflect damage back to attacker (if we track the attacker)

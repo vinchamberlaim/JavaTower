@@ -44,12 +44,19 @@ public class SkillTreePanel extends VBox {
     private ScrollPane scrollPane;
     /** Persisted scroll position - only reset when panel is re-opened */
     private double savedScrollV = 0;
+    /** Persisted pixel offset to avoid jump when content height changes after unlock. */
+    private double savedScrollPixels = 0;
     /** Flag to prevent listener from overwriting scroll during refresh */
     private boolean isRefreshing = false;
 
-    public SkillTreePanel(Hero hero, GameGUI gui) {
+    private static double clamp01(double v) {
+        return Math.max(0.0, Math.min(1.0, v));
+    }
+
+    public SkillTreePanel(Hero hero, GameGUI gui, double initialScrollV) {
         this.hero = hero;
         this.gui = gui;
+        this.savedScrollV = clamp01(initialScrollV);
         setSpacing(12);
         setPadding(new Insets(20));
         setAlignment(Pos.TOP_CENTER);
@@ -121,7 +128,8 @@ public class SkillTreePanel extends VBox {
         // Save scroll position whenever user scrolls (but not during refresh)
         scrollPane.vvalueProperty().addListener((obs, oldVal, newVal) -> {
             if (!isRefreshing) {
-                savedScrollV = newVal.doubleValue();
+                savedScrollV = clamp01(newVal.doubleValue());
+                savedScrollPixels = savedScrollV * getMaxScrollOffset();
             }
         });
 
@@ -130,6 +138,8 @@ public class SkillTreePanel extends VBox {
     }
 
     public void refresh() {
+        captureScrollState();
+
         isRefreshing = true;
         pointsLabel.setText("Skill Points: " + hero.getSkillPoints());
         treeContent.getChildren().clear();
@@ -150,22 +160,20 @@ public class SkillTreePanel extends VBox {
             treeContent.getChildren().add(noTrees);
         }
         
-        // Restore saved scroll position after layout update
-        if (scrollPane != null) {
-            final double targetScroll = savedScrollV;
-            javafx.application.Platform.runLater(() -> {
-                scrollPane.setVvalue(targetScroll);
-                isRefreshing = false;
-            });
-        } else {
-            isRefreshing = false;
-        }
+        // Restore saved scroll after layout settles. Retry a few frames if viewport isn't ready yet.
+        restoreScrollAfterRefresh(savedScrollPixels, savedScrollV, 3);
     }
     
     /** Reset scroll to top - call when opening panel fresh */
     public void resetScroll() {
         savedScrollV = 0;
+        savedScrollPixels = 0;
         if (scrollPane != null) scrollPane.setVvalue(0);
+    }
+
+    /** Current persisted vertical scroll position [0..1]. */
+    public double getSavedScrollV() {
+        return savedScrollV;
     }
 
     private void renderTree(String treeName, SkillTree tree, String headerColor) {
@@ -203,6 +211,8 @@ public class SkillTreePanel extends VBox {
                 unlockBtn.setStyle("-fx-background-color: #a855f7; -fx-text-fill: white;");
                 final SkillNode nodeRef = node;
                 unlockBtn.setOnAction(e -> {
+                    // Capture exact offset before row contents change.
+                    captureScrollState();
                     if (hero.getSkillPoints() >= nodeRef.getCost() && tree.unlockNode(nodeRef.getId(), hero.getSkillPoints())) {
                         hero.setSkillPoints(hero.getSkillPoints() - nodeRef.getCost());
                         tree.applyBonuses(hero);
@@ -217,5 +227,49 @@ public class SkillTreePanel extends VBox {
 
             treeContent.getChildren().add(row);
         }
+    }
+
+    private double getMaxScrollOffset() {
+        if (scrollPane == null || scrollPane.getContent() == null) return 0;
+        double contentHeight = scrollPane.getContent().getLayoutBounds().getHeight();
+        double viewportHeight = scrollPane.getViewportBounds().getHeight();
+        return Math.max(0, contentHeight - viewportHeight);
+    }
+
+    private void captureScrollState() {
+        if (scrollPane == null) return;
+        savedScrollV = clamp01(scrollPane.getVvalue());
+        savedScrollPixels = Math.max(0, savedScrollV * getMaxScrollOffset());
+    }
+
+    private void restoreScrollAfterRefresh(double targetPixels, double fallbackV, int remainingPasses) {
+        if (scrollPane == null) {
+            isRefreshing = false;
+            return;
+        }
+        javafx.application.Platform.runLater(() -> {
+            scrollPane.applyCss();
+            scrollPane.layout();
+
+            double maxOffset = getMaxScrollOffset();
+            if (maxOffset > 0) {
+                double restoredV = clamp01(targetPixels / maxOffset);
+                scrollPane.setVvalue(restoredV);
+                savedScrollV = restoredV;
+                savedScrollPixels = Math.max(0, restoredV * maxOffset);
+                isRefreshing = false;
+                return;
+            }
+
+            if (remainingPasses > 0) {
+                restoreScrollAfterRefresh(targetPixels, fallbackV, remainingPasses - 1);
+                return;
+            }
+
+            savedScrollV = clamp01(fallbackV);
+            scrollPane.setVvalue(savedScrollV);
+            savedScrollPixels = 0;
+            isRefreshing = false;
+        });
     }
 }

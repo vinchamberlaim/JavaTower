@@ -242,6 +242,29 @@ public class InventoryPanel extends VBox {
         return false;
     }
 
+    /**
+     * Adds an item back to inventory and expands storage until it fits.
+     * Prevents item loss during equip/unequip swaps.
+     */
+    private void addItemSafelyToInventory(Item item) {
+        if (item == null) return;
+        boolean added = hero.getInventory().addItem(item);
+        int safety = 0;
+        while (!added && safety < 64) {
+            int newW = hero.getInventory().getWidth() + 1;
+            int newH = hero.getInventory().getHeight() + 1;
+            hero.getInventory().expand(newW, newH);
+            added = hero.getInventory().addItem(item);
+            safety++;
+        }
+        if (!added) {
+            while (!added) {
+                hero.getInventory().expand(hero.getInventory().getWidth() + 1, hero.getInventory().getHeight() + 1);
+                added = hero.getInventory().addItem(item);
+            }
+        }
+    }
+
     public void refresh() {
         isRefreshing = true;
         equipSection.getChildren().clear();
@@ -331,7 +354,7 @@ public class InventoryPanel extends VBox {
 
         Label slotLabel = new Label(slotName + ":");
         slotLabel.setFont(Font.font("Monospaced", FontWeight.BOLD, 16));
-        slotLabel.setStyle("-fx-text-fill: #aaa;");
+        slotLabel.setStyle("-fx-text-fill: #d1d5db;");
         slotLabel.setPrefWidth(100);
 
         if (item != null) {
@@ -344,7 +367,7 @@ public class InventoryPanel extends VBox {
 
             Label statsLabel = new Label(item.getStatBonuses().toString());
             statsLabel.setFont(Font.font("Monospaced", 13));
-            statsLabel.setStyle("-fx-text-fill: #888;");
+            statsLabel.setStyle("-fx-text-fill: #cbd5e1;");
             statsLabel.setPrefWidth(240);
 
             Button unequipBtn = new Button("Unequip");
@@ -352,7 +375,7 @@ public class InventoryPanel extends VBox {
             unequipBtn.setOnAction(e -> {
                 Item removed = hero.unequipSlot(slotKey);
                 if (removed != null) {
-                    hero.getInventory().addItem(removed);
+                    addItemSafelyToInventory(removed);
                 }
                 refresh();
             });
@@ -393,7 +416,7 @@ public class InventoryPanel extends VBox {
 
         Label statsLabel = new Label(item.getStatBonuses().toString());
         statsLabel.setFont(Font.font("Monospaced", 13));
-        statsLabel.setStyle("-fx-text-fill: #888;");
+        statsLabel.setStyle("-fx-text-fill: #cbd5e1;");
         statsLabel.setPrefWidth(220);
 
         Button equipBtn = new Button("Equip");
@@ -417,13 +440,30 @@ public class InventoryPanel extends VBox {
                 inv.removeOne(itemRef);
             } else {
                 Item toEquip = (itemRef.getStackCount() > 1) ? itemRef.copy() : itemRef;
+                if (!hero.canEquipItem(toEquip)) {
+                    gui.logAction("Cannot equip offhand while a two-handed weapon is equipped.");
+                    refresh();
+                    return;
+                }
+
+                java.util.List<Item> displaced = hero.equipItemWithDisplaced(toEquip);
+                if (displaced == null || !hero.isItemEquipped(toEquip)) {
+                    gui.logAction("Equip failed.");
+                    refresh();
+                    return;
+                }
+
+                // Remove from bag only after successful equip.
                 if (itemRef.getStackCount() > 1) {
                     itemRef.addStack(-1);
                 } else {
                     inv.removeSpecificItem(itemRef);
                 }
-                Item prev = hero.equipItem(toEquip);
-                if (prev != null) inv.addItem(prev);
+
+                // Return all displaced items safely.
+                for (Item displacedItem : displaced) {
+                    addItemSafelyToInventory(displacedItem);
+                }
             }
             refresh();
         });
