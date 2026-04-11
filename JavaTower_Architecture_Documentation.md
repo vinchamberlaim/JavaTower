@@ -53,16 +53,22 @@ JavaTower is a real-time tower defence RPG implemented in Java 21 using JavaFX f
 
 ### Key Features
 - **Real-time gameplay** with an `AnimationTimer` game loop running at 60 FPS
-- **10-tier enemy hierarchy** from Zombie to NecromancerKing, each with unique AI behaviours
-- **4 tower types** (Arrow, Magic, Siege, Support) with upgrade paths
+- **13 enemy types** across 10 tiers from Zombie to NecromancerKing, each with unique AI behaviours
+- **Elite modifier system** that randomly enhances enemies (Swift, Vampiric, Shielded, Splitter, etc.)
+- **4 tower types** (Arrow, Magic, Siege, Support) with upgrade paths and tower synergy bonuses
 - **Tetris-style inventory** where items have 2D sizes (e.g., a sword is 1×3, chest armour is 2×3)
 - **Equipment system** with 8 slots (weapon, offhand, helmet, chest, legs, boots, 2 accessories)
-- **Item rarity system** (Common → Legendary) with stat multipliers
+- **Item rarity system** (Common → Legendary) with stat multipliers and equipment set bonuses
+- **Forge system** for combining duplicate items into higher-rarity upgrades
 - **Bone pile mechanic** where dead enemies leave corpses that bosses can resurrect
 - **Skill tree system** with branching prerequisites (combat, magic, utility trees)
+- **Use-based skill progression** — weapon proficiency improves through combat
 - **Shop system** with wave-scaled stock and buy/sell mechanics
-- **SQLite persistence** for saving and loading game state via JDBC
+- **Wave modifiers** (Swarm, Elite Wave, Rush, Gold Rush, etc.) for variety each wave
+- **Difficulty levels** (Easy, Normal, Hard, Nightmare) with stat scaling
+- **SQLite persistence** for saving and loading game state via JDBC with multiple save slots
 - **30 hand-crafted waves** with mini-bosses every 5 waves and a final boss at wave 30
+- **Mini-map, combat log, pixel art rendering, and visual effects** (projectiles, damage numbers, spell effects)
 
 ### Technology Stack
 | Component | Technology | Version |
@@ -70,8 +76,16 @@ JavaTower is a real-time tower defence RPG implemented in Java 21 using JavaFX f
 | Language | Java | 21 (OpenJDK) |
 | GUI Framework | JavaFX | 21.0.2 |
 | Database | SQLite via JDBC | sqlite-jdbc 3.45.1.0 |
-| Build | Manual javac with sources.txt | — |
+| Build | Manual `javac` with `sources.txt` | — |
 | IDE | VS Code with Java Extension Pack | — |
+
+### Why We Chose These Technologies
+
+- **Java 21** — The language we have been learning throughout CIS096-1. Using the latest LTS release gives us access to modern features while keeping compatibility with course material.
+- **JavaFX** — We chose JavaFX because it is the GUI framework we have been using in our lessons, so we were already familiar with its layout system (`BorderPane`, `VBox`, `HBox`), event handling, and the `Canvas` class. It fit the bill perfectly for a real-time game because its built-in `AnimationTimer` gives us a proper 60 FPS game loop without needing any external game engine.
+- **SQLite via JDBC** — A lightweight embedded database that requires no server setup. The `sqlite-jdbc` JAR is the only dependency, and JDBC is the standard Java database API covered in the course.
+- **`javac` (Java Compiler)** — `javac` is the command-line Java compiler that ships with the JDK. It reads `.java` source files and compiles them into `.class` bytecode files that the JVM can execute. We use `javac` directly with a `sources.txt` file (which lists all `.java` files) instead of a build tool like Maven or Gradle because the project is self-contained and does not need complex dependency management — our only external JAR is the SQLite driver.
+- **VS Code** — Lightweight editor with the Java Extension Pack providing IntelliSense, debugging, and integrated terminal support.
 
 ---
 
@@ -154,9 +168,18 @@ JavaTower follows a **layered architecture** with clear separation of concerns:
 
 ```
 javatower/
-├── util/                          # Configuration and state management
-│   ├── Constants.java             # Game-wide constants (dimensions, speeds, ranges)
-│   └── GameState.java             # State machine enum (MAIN_MENU, PLAYING, etc.)
+├── ai/                            # AI and analytics
+│   └── GameMetrics.java           # Per-wave gameplay data collection for balance analysis
+│
+├── config/                        # Game configuration
+│   └── GameBalanceConfig.java     # Centralised balance constants (hero, enemy, economy tuning)
+│
+├── data/                          # Data transfer objects
+│   ├── GameState.java             # Serialisable game state for save/load
+│   └── SaveSlotInfo.java          # Save slot metadata for the load-game UI
+│
+├── database/                      # Data persistence
+│   └── DatabaseManager.java       # SQLite JDBC singleton
 │
 ├── entities/                      # Core game entities (OOP hierarchy)
 │   ├── Entity.java                # Abstract base class for all entities
@@ -165,7 +188,8 @@ javatower/
 │   ├── Tower.java                 # Abstract tower base (extends Entity)
 │   ├── Item.java                  # Equipment and consumable items
 │   ├── BonePile.java              # Dead enemy corpses for resurrection
-│   ├── enemies/                   # Concrete enemy implementations
+│   ├── EliteModifier.java         # Enum of elite buffs (Swift, Vampiric, Shielded, etc.)
+│   ├── enemies/                   # Concrete enemy implementations (13 types)
 │   │   ├── Zombie.java            # Tier 1 — slow melee
 │   │   ├── Skeleton.java          # Tier 2 — ranged
 │   │   ├── Ghoul.java             # Tier 3 — fast melee
@@ -174,7 +198,10 @@ javatower/
 │   │   ├── Revenant.java          # Tier 6 — resurrects on death
 │   │   ├── DeathKnight.java       # Tier 7 — heavy melee
 │   │   ├── Lich.java              # Tier 8 — kiting summoner
+│   │   ├── Cultist.java           # Tier 8 — eldritch cult caster
+│   │   ├── DeepOne.java           # Tier 9 — amphibious abyssal brute
 │   │   ├── BoneColossus.java      # Tier 9 — massive tank
+│   │   ├── Shoggoth.java          # Tier 10 — cosmic horror juggernaut
 │   │   └── NecromancerKing.java   # Tier 10 — final boss, dual-weapon AI
 │   └── towers/                    # Concrete tower implementations
 │       ├── ArrowTower.java        # Single-target physical damage
@@ -182,16 +209,11 @@ javatower/
 │       ├── SiegeTower.java        # Slow, high-damage siege
 │       └── SupportTower.java      # Buff/support aura
 │
-├── systems/                       # Game systems and mechanics
-│   ├── WaveManager.java           # Wave progression and enemy spawning
-│   ├── Shop.java                  # Buy/sell items between waves
-│   ├── Inventory.java             # Tetris-style grid inventory
-│   ├── SkillTree.java             # Branching skill progression
-│   ├── SkillNode.java             # Individual skill node
-│   └── CombatSystem.java          # Combat coordination (legacy)
+├── events/                        # Event-driven communication
+│   └── GameEventBus.java          # Observer pattern pub/sub for game events
 │
 ├── factories/                     # Object creation (Factory Pattern)
-│   ├── EnemyFactory.java          # Creates enemies with wave scaling
+│   ├── EnemyFactory.java          # Creates enemies with wave scaling and elite modifiers
 │   ├── TowerFactory.java          # Creates towers by type
 │   └── ItemFactory.java           # Creates items and shop stock
 │
@@ -202,13 +224,35 @@ javatower/
 │   ├── WaveInfoPanel.java         # Wave progress display
 │   ├── ShopPanel.java             # Shop interface
 │   ├── InventoryPanel.java        # Inventory management interface
-│   └── SkillTreePanel.java        # Skill tree interface
+│   ├── SkillTreePanel.java        # Skill tree interface
+│   ├── ForgePanel.java            # Item forge/combine interface
+│   ├── CombatLogPanel.java        # Recent combat events log
+│   ├── MiniMap.java               # Scaled-down world overview overlay
+│   ├── PixelArtRenderer.java      # Pixel-art sprite rendering with animations
+│   └── VisualEffect.java          # Projectiles, damage numbers, spell effects
 │
-└── database/                      # Data persistence
-    └── DatabaseManager.java       # SQLite JDBC singleton
+├── systems/                       # Game systems and mechanics
+│   ├── WaveManager.java           # Wave progression and enemy spawning
+│   ├── WaveModifier.java          # Per-wave random modifiers (Swarm, Rush, Gold Rush, etc.)
+│   ├── Shop.java                  # Buy/sell items between waves
+│   ├── Inventory.java             # Tetris-style grid inventory
+│   ├── Forge.java                 # Item combining/upgrading system
+│   ├── SkillTree.java             # Branching skill progression
+│   ├── SkillNode.java             # Individual skill node
+│   ├── SkillProgression.java      # Use-based weapon proficiency system
+│   ├── CombatSystem.java          # Combat coordination
+│   ├── SaveGameManager.java       # Multi-slot save/load orchestration
+│   ├── SetBonusManager.java       # Equipment set bonus calculations
+│   └── TowerSynergyManager.java   # Adjacent tower synergy bonuses
+│
+└── util/                          # Configuration and state management
+    ├── Constants.java             # Game-wide constants (dimensions, speeds, ranges)
+    ├── GameState.java             # State machine enum (MAIN_MENU, PLAYING, etc.)
+    ├── Difficulty.java            # Difficulty levels (Easy, Normal, Hard, Nightmare)
+    └── Logger.java                # Console and file logging utility
 ```
 
-**Total:** 35 Java source files across 7 packages.
+**Total:** 62 Java source files across 10 packages.
 
 ---
 
@@ -392,6 +436,24 @@ Represents a dead enemy's corpse on the game board. Used by summoner enemies (Li
 
 ---
 
+#### `EliteModifier` (Enum)
+
+Enemy elite modifiers that grant bonus stats and special traits. Applied randomly at spawn for variety.
+
+| Modifier | Tier | Effect |
+|----------|------|--------|
+| FAST ("Swift") | Common (30%) | +50% speed, −20% HP |
+| TANKY ("Iron") | Common (30%) | +50% HP, −30% speed |
+| VAMPIRIC | Uncommon (15%) | +20% HP, heals 20% of damage dealt |
+| EXPLOSIVE ("Volatile") | Uncommon (15%) | Explodes on death |
+| REGENERATING ("Regen") | Uncommon (15%) | Regenerates HP over time |
+| SHIELDED | Rare (5%) | Shield absorbs first hit |
+| SPLITTER | Rare (5%) | Splits into 2 smaller enemies on death |
+
+**OOP Principle:** The `EliteModifier` enum uses composition over inheritance — any enemy can receive any modifier without needing a separate subclass for each combination.
+
+---
+
 ### 5.2 Enemy Subclasses (`javatower.entities.enemies`)
 
 Each enemy overrides `update()` with unique AI behaviour:
@@ -406,10 +468,13 @@ Each enemy overrides `update()` with unique AI behaviour:
 | `Revenant` | 6 | Self-resurrect — comes back once after death, mini-boss |
 | `DeathKnight` | 7 | Heavy melee — slow but extremely durable |
 | `Lich` | 8 | Kiting summoner — maintains 200px distance, flees within 100px, summons from bone piles, ranged attack at 1.8s cooldown |
+| `Cultist` | 8 | Eldritch cult caster — ranged magic attacks |
+| `DeepOne` | 9 | Amphibious abyssal brute — heavy melee with high HP |
 | `BoneColossus` | 9 | Massive tank — very slow, enormous HP and defence |
+| `Shoggoth` | 10 | Cosmic horror juggernaut — unstable, high damage and HP |
 | `NecromancerKing` | 10 | **Final boss** — dual-weapon system (sword melee 0–50px at 1.5× damage, bow ranged 80–260px at 0.7× damage), dead zone 50–80px, kiting AI, summoning, enrage at 25% HP |
 
-**OOP Principle:** Polymorphism — all enemies share the `Enemy` interface but each exhibits radically different behaviour when `update()` is called.
+**OOP Principle:** Polymorphism — all 13 enemies share the `Enemy` interface but each exhibits radically different behaviour when `update()` is called.
 
 ---
 
@@ -482,6 +547,69 @@ A branching skill progression system with three trees (combat, magic, utility).
 
 Legacy class retained for compatibility. Real-time combat is now handled directly by `Hero.update()`, `Enemy.update()`, and `Tower.update()` within the `AnimationTimer` game loop.
 
+#### `Forge`
+
+Item crafting system that combines two items of the same rarity into a higher-rarity item.
+
+| Key Method | Description |
+|------------|-------------|
+| `canForge(Item, Item)` | Checks if two items are compatible for forging (same rarity) |
+| `forge(Item, Item)` | Combines items into a higher-rarity result with boosted stats |
+| `getForgeResult(Item, Item)` | Preview the result without consuming items |
+
+#### `SaveGameManager`
+
+Multi-slot save/load system supporting multiple save files.
+
+| Key Method | Description |
+|------------|-------------|
+| `saveToSlot(int, Hero, int)` | Saves current game state to a numbered slot |
+| `loadFromSlot(int)` | Restores game state from a save slot |
+| `getSlotInfos()` | Returns `SaveSlotInfo` list for the save/load UI |
+| `deleteSlot(int)` | Removes a save file |
+
+#### `SetBonusManager`
+
+Tracks equipped item sets and applies bonuses when enough pieces of a set are worn.
+
+| Key Method | Description |
+|------------|-------------|
+| `checkSetBonuses(Hero)` | Evaluates equipped items against set definitions |
+| `getActiveBonuses()` | Returns currently active set bonuses |
+
+#### `SkillProgression`
+
+Use-based weapon experience system — heroes gain proficiency the more they use a weapon type.
+
+| Key Method | Description |
+|------------|-------------|
+| `addWeaponXP(String, int)` | Awards XP to a weapon type from use |
+| `getWeaponLevel(String)` | Returns current level for a weapon type |
+| `getBonus(String)` | Returns damage bonus from weapon proficiency |
+
+#### `TowerSynergyManager`
+
+Detects adjacent tower combinations and grants synergy bonuses.
+
+| Synergy | Towers | Effect |
+|---------|--------|--------|
+| Arcane Arrows | Arrow + Magic | Arrows gain magic damage |
+| Fortified Siege | Siege + Support | Siege gains armour-piercing |
+| Elemental Storm | Magic + Siege | AoE damage boost |
+
+#### `WaveModifier` (Enum)
+
+Modifies wave behaviour for additional challenge and variety.
+
+| Modifier | Effect |
+|----------|--------|
+| SWARM | Double enemy count, half HP |
+| ELITE_WAVE | All enemies gain elite modifiers |
+| RUSH | Enemies spawn faster |
+| ARMORED | All enemies gain +50% defence |
+| GOLD_RUSH | Enemies drop bonus gold |
+| XP_BOOST | Enemies grant bonus XP |
+
 ---
 
 ### 5.5 Factories (`javatower.factories`)
@@ -544,6 +672,16 @@ Pixel-based rendering of the game world:
 | `ShopPanel` | Buy/sell interface between waves |
 | `InventoryPanel` | Item management and equipment |
 | `SkillTreePanel` | Skill tree interaction |
+| `ForgePanel` | UI for combining items via the Forge system |
+| `CombatLogPanel` | Scrolling log of recent combat events (damage, kills, loot) |
+| `MiniMap` | Scaled overview of the game world showing entity positions |
+
+#### Visual Systems
+
+| Class | Purpose |
+|-------|---------|
+| `PixelArtRenderer` | Sprite rendering utilities for pixel-art style entities |
+| `VisualEffect` | Animated effects: projectiles, damage numbers, spell impacts, screen shake |
 
 ---
 
@@ -571,7 +709,50 @@ Provides SQLite persistence via JDBC for save/load functionality.
 
 ---
 
-### 5.8 Utilities (`javatower.util`)
+### 5.8 AI and Analytics (`javatower.ai`)
+
+#### `GameMetrics`
+
+Collects per-wave analytics: enemies killed, damage dealt/taken, gold earned, tower efficiency. Used for balancing and post-game stats display.
+
+---
+
+### 5.9 Configuration (`javatower.config`)
+
+#### `GameBalanceConfig`
+
+Centralised tuning file for game balance values — enemy scaling factors, tower costs, XP curves, gold rewards. Separates design data from game logic for easy tweaking.
+
+---
+
+### 5.10 Data Transfer (`javatower.data`)
+
+#### `GameState` (Data Class)
+
+Serializable snapshot of the full game state used by the save/load system.
+
+#### `SaveSlotInfo`
+
+Lightweight data class holding metadata for the save-slot selection UI: slot number, hero name, level, wave reached, timestamp.
+
+---
+
+### 5.11 Events (`javatower.events`)
+
+#### `GameEventBus`
+
+Generic publish/subscribe event system. Game systems register listeners for events (enemy killed, wave started, item dropped) without direct coupling.
+
+| Key Method | Description |
+|------------|-------------|
+| `subscribe(EventType, Listener)` | Register a listener for an event type |
+| `publish(EventType, Object)` | Fire an event to all registered listeners |
+
+**OOP Principle:** Observer pattern — decouples event producers from consumers, enabling modular system communication.
+
+---
+
+### 5.12 Utilities (`javatower.util`)
 
 #### `Constants`
 
@@ -590,6 +771,21 @@ Centralises all magic numbers as `public static final` constants:
 
 State machine for the application: `MAIN_MENU`, `PLAYING`, `SHOPPING`, `SKILL_TREE`, `PAUSED`, `GAME_OVER`, `VICTORY`.
 
+#### `Difficulty` (Enum)
+
+Difficulty presets that scale enemy stats:
+
+| Difficulty | HP Multiplier | Damage Multiplier | Gold Multiplier |
+|------------|--------------|-------------------|----------------|
+| EASY | 0.7× | 0.7× | 1.3× |
+| NORMAL | 1.0× | 1.0× | 1.0× |
+| HARD | 1.4× | 1.3× | 0.8× |
+| NIGHTMARE | 2.0× | 1.6× | 0.6× |
+
+#### `Logger`
+
+Dual-output logging utility — writes to both console and a log file. Supports log levels (INFO, WARNING, ERROR) for debugging and diagnostics.
+
 ---
 
 ## 6. OOP Principles Applied
@@ -602,7 +798,7 @@ State machine for the application: `MAIN_MENU`, `PLAYING`, `SHOPPING`, `SKILL_TR
 
 ### Inheritance
 - `Entity` → `Hero`, `Enemy`, `Tower` hierarchy provides shared state and behaviour
-- `Enemy` → 10 concrete subclasses, each specialising AI behaviour
+- `Enemy` → 13 concrete subclasses, each specialising AI behaviour
 - `Tower` → 4 concrete subclasses with different attack strategies
 
 **Inheritance Hierarchy:**
@@ -618,7 +814,10 @@ Entity (abstract)
 │   ├── Revenant
 │   ├── DeathKnight
 │   ├── Lich
+│   ├── Cultist
+│   ├── DeepOne
 │   ├── BoneColossus
+│   ├── Shoggoth
 │   └── NecromancerKing
 └── Tower (abstract)
     ├── ArrowTower
@@ -677,10 +876,10 @@ The application behaviour changes based on `GameState`: `PLAYING` runs the game 
 
 Each tower implements a different targeting and attack strategy through polymorphic `selectTarget()` and `attack()` methods.
 
-### Observer Pattern (Implicit)
-**Used in:** `WaveManager.onEnemyKilled()`
+### Observer Pattern
+**Used in:** `GameEventBus`, `WaveManager.onEnemyKilled()`
 
-Game systems are notified of enemy deaths to update wave progress, spawn bone piles, and award XP/gold.
+The `GameEventBus` implements a full publish/subscribe system — game systems subscribe to event types (enemy killed, wave started, item dropped) and are notified without direct coupling. `WaveManager` also uses this pattern to update wave progress, spawn bone piles, and award XP/gold on enemy deaths.
 
 ---
 
@@ -731,16 +930,16 @@ Game systems are notified of enemy deaths to update wave progress, spawn bone pi
             │           │ Revenant  │
      ┌──────▼──────┐    │ DeathKn.  │
      │  Inventory  │    │ Lich      │
-     ├─────────────┤    │ BoneColo. │
-     │ -width,height│   │ NecroKing │
-     │ -occupied[][] │  └───────────┘
-     │ -itemGrid[][] │
-     ├─────────────┤
-     │ +addItem()  │        ┌───────────┐
-     │ +removeItem()│       │   Item    │
-     │ +canPlace() │        ├───────────┤
-     │ +expand()   │        │ -slot     │
-     └─────────────┘        │ -rarity   │
+     ├─────────────┤    │ Cultist   │
+     │ -width,height│   │ DeepOne   │
+     │ -occupied[][] │  │ BoneColo. │
+     │ -itemGrid[][] │  │ Shoggoth  │
+     ├─────────────┤    │ NecroKing │
+     │ +addItem()  │    └───────────┘
+     │ +removeItem()│
+     │ +canPlace() │        ┌───────────┐
+     │ +expand()   │        │   Item    │
+     └─────────────┘        ├───────────┤
                             │ -width,h  │
                             │ -statMap  │
     ┌────────────────┐      │ -level    │
@@ -834,6 +1033,7 @@ The JavaFX GUI is built around a `BorderPane` layout:
 - `ShopPanel` — displayed between waves, buy/sell items
 - `InventoryPanel` — manage equipment and items
 - `SkillTreePanel` — spend skill points on upgrades
+- `ForgePanel` — combine items into higher-rarity gear
 
 ---
 
@@ -955,7 +1155,7 @@ java --module-path "javafx-sdk/lib" --add-modules javafx.controls,javafx.graphic
 ### Challenges Without AI
 - Understanding the interaction between JavaFX's `AnimationTimer` and real-time game logic would have required more trial and error
 - Designing the Tetris-style inventory algorithm (2D bin packing) was conceptually challenging
-- Balancing 10 enemy tiers with unique AI behaviors across 30 waves would have taken significantly longer
+- Balancing 13 enemy tiers with unique AI behaviors across 30 waves would have taken significantly longer
 
 ### What I Learned
 - How to structure a large Java project with proper package separation
@@ -968,15 +1168,16 @@ java --module-path "javafx-sdk/lib" --add-modules javafx.controls,javafx.graphic
 
 ## 15. Conclusion
 
-JavaTower demonstrates comprehensive application of Object-Oriented Programming principles through a real-time tower defence RPG with 35 Java source files across 7 packages. The project features:
+JavaTower demonstrates comprehensive application of Object-Oriented Programming principles through a real-time tower defence RPG with 62 Java source files across 10 packages. The project features:
 
-- A deep **inheritance hierarchy** (Entity → Hero/Enemy/Tower with 14 subclasses)
+- A deep **inheritance hierarchy** (Entity → Hero/Enemy/Tower with 17 subclasses)
 - Effective use of **polymorphism** for diverse enemy AI and tower behaviour
 - Strong **encapsulation** across all classes with private fields and controlled access
 - Proper **abstraction** through abstract base classes and interfaces
-- **Design patterns** including Factory Method, Singleton, Template Method, and State
+- **Design patterns** including Factory Method, Singleton, Template Method, Observer, and State
 - **JDBC database connectivity** for persistent game saves
 - A **JavaFX GUI** with real-time canvas rendering and multiple interactive panels
+- **Elite modifiers**, **forge crafting**, **set bonuses**, **tower synergies**, and **difficulty scaling**
 
 The codebase is organised, documented, and fully functional — compiling and running cleanly on Java 21 with JavaFX 21.0.2 and SQLite JDBC 3.45.1.0.
 
